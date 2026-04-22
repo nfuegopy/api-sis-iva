@@ -1,0 +1,49 @@
+/* eslint-disable prettier/prettier */
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common';
+import { CuotasPagosService } from './cuotas-pagos.service';
+import { CreateCuotaPagoDto } from './dto/create-cuota-pago.dto';
+import { UpdateCuotaPagoDto } from './dto/update-cuota-pago.dto';
+
+@Controller('cobranzas/cuotas-pagos')
+export class CuotasPagosController {
+  constructor(private readonly cuotasPagosService: CuotasPagosService) {}
+
+  @Post()
+  create(@Body() createCuotaPagoDto: CreateCuotaPagoDto) {
+    return this.cuotasPagosService.create(createCuotaPagoDto);
+  }
+
+  @Get()
+  findAll(@Query('suscripcion_id') suscripcion_id?: string) {
+    const id = suscripcion_id ? parseInt(suscripcion_id, 10) : undefined;
+    return this.cuotasPagosService.findAll(id);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.cuotasPagosService.findOne(id);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateCuotaPagoDto: UpdateCuotaPagoDto,
+  ) {
+    return this.cuotasPagosService.update(id, updateCuotaPagoDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.cuotasPagosService.remove(id);
+  }
+}
