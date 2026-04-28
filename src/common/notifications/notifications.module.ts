@@ -6,7 +6,7 @@ import { SmtpEmailProvider } from './providers/smtp-email.provider';
 import { FirebaseModule } from '../../firebase/firebase.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailerModule } from '@nestjs-modules/mailer';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 
 @Global()
 @Module({

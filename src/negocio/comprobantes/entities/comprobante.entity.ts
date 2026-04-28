@@ -74,4 +74,12 @@ export class Comprobante {
 
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   confianza_ocr: number;
+
+  @Column({
+    type: 'enum',
+    enum: ['AUTO_PROCESADO', 'REQUIERE_REVISION', 'VERIFICADO_HUMANO'],
+    default: 'REQUIERE_REVISION',
+    nullable: true,
+  })
+  estado_ocr: string;
 }
