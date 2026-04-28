@@ -36,6 +36,7 @@ import { ComprobantesModule } from './negocio/comprobantes/comprobantes.module';
 import { AsignacionesContablesModule } from './negocio/asignaciones-contables/asignaciones-contables.module';
 import { SuscripcionesModule } from './negocio/suscripciones/suscripciones.module';
 import { CuotasPagosModule } from './negocio/cuotas-pagos/cuotas-pagos.module';
+import { OcrTaxModule } from './negocio/ocr-tax/ocr-tax.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { CuotasPagosModule } from './negocio/cuotas-pagos/cuotas-pagos.module';
     AsignacionesContablesModule,
     SuscripcionesModule,
     CuotasPagosModule,
+    OcrTaxModule,
   ],
   controllers: [AppController],
   providers: [AppService],

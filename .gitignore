@@ -57,3 +57,5 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Firebase Credentials
 firebase-credentials.json 
+
+google-credentials.json
