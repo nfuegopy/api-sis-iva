@@ -1,53 +1,65 @@
 /* eslint-disable prettier/prettier */
-
 import {
   Injectable,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import sharp from 'sharp';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 @Injectable()
 export class ImageOptimizationService {
   private readonly logger = new Logger(ImageOptimizationService.name);
+  private s3Client: S3Client;
 
+  constructor() {
+    this.s3Client = new S3Client({
+      region: 'auto',
+      endpoint: process.env.R2_ENDPOINT as string,
+      credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY as string,
+        secretAccessKey: process.env.R2_SECRET_KEY as string,
+      },
+    });
+  }
+
+  // Ahora devolvemos la URL pública y el Buffer optimizado en memoria
   async optimizeAndSave(
     fileBuffer: Buffer,
     rucContribuyente: string,
-  ): Promise<string> {
+  ): Promise<{ url: string; buffer: Buffer }> {
     try {
       const fechaActual = new Date();
       const anho = fechaActual.getFullYear().toString();
       const mes = (fechaActual.getMonth() + 1).toString().padStart(2, '0');
 
-      const uploadDir = path.join(
-        process.cwd(),
-        'uploads',
-        rucContribuyente,
-        anho,
-        mes,
-      );
+      const fileName = `comprobantes/${rucContribuyente}/${anho}/${mes}/comprobante-${Date.now()}.webp`;
 
-      await fs.mkdir(uploadDir, { recursive: true });
-
-      const fileName = `comprobante-${Date.now()}.webp`;
-      const filePath = path.join(uploadDir, fileName);
-
-      await sharp(fileBuffer)
+      // 1. Optimizamos manteniendo la imagen en la RAM
+      const optimizedBuffer = await sharp(fileBuffer)
         .rotate()
         .resize({ width: 1200, withoutEnlargement: true })
         .webp({ quality: 75 })
-        .toFile(filePath);
+        .toBuffer();
 
-      this.logger.log(`Imagen guardada y optimizada en: ${filePath}`);
+      // 2. Subimos a Cloudflare R2
+      await this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME,
+          Key: fileName,
+          Body: optimizedBuffer,
+          ContentType: 'image/webp',
+        }),
+      );
 
-      return path.join('uploads', rucContribuyente, anho, mes, fileName);
+      const publicUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`;
+      this.logger.log(`Imagen subida a R2 exitosamente: ${publicUrl}`);
+
+      return { url: publicUrl, buffer: optimizedBuffer };
     } catch (error) {
-      this.logger.error('Error procesando imagen con Sharp', error);
+      this.logger.error('Error procesando imagen o subiendo a R2', error);
       throw new InternalServerErrorException(
-        'Error al optimizar la imagen del comprobante',
+        'Error al optimizar y subir el comprobante',
       );
     }
   }

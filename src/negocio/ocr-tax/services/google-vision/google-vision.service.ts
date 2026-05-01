@@ -16,27 +16,25 @@ export interface OcrResult {
 export class GoogleVisionService {
   private readonly logger = new Logger(GoogleVisionService.name);
 
-  // NestJS leerá automáticamente tu google-credentials.json gracias a la variable del .env
   private readonly client = new ImageAnnotatorClient();
 
-  async extractText(relativePath: string): Promise<OcrResult> {
+  async extractText(imageBuffer: Buffer): Promise<OcrResult> {
     this.logger.warn(
       'Iniciando rescate con Google Cloud Vision API (IA Premium)...',
     );
-
     try {
-      const absolutePath = path.join(process.cwd(), relativePath);
+      // Vision API también puede leer el buffer directo si se lo pasamos en este formato
+      const request = {
+        image: { content: imageBuffer },
+      };
 
-      // documentTextDetection es un algoritmo de Google especializado en documentos densos como facturas
-      const [result] = await this.client.documentTextDetection(absolutePath);
+      const [result] = await this.client.documentTextDetection(request);
       const fullTextAnnotation = result.fullTextAnnotation;
 
       this.logger.log('Lectura de Google Vision completada con éxito.');
-
       return {
-        // Usamos Optional Chaining para garantizar que SIEMPRE devuelva un string
         rawText: fullTextAnnotation?.text || '',
-        confidence: 99, // Le asignamos 99% porque es nuestro modelo premium de rescate
+        confidence: 99,
       };
     } catch (error) {
       this.logger.error('Fallo crítico al conectar con Google Vision', error);

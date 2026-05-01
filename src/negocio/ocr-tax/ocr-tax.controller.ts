@@ -67,12 +67,15 @@ export class OcrTaxController {
       );
     }
 
-    // 2. Procesamiento de Imagen y OCR (El Intento Gratis)
-    const rutaImagenGuardada = await this.imageService.optimizeAndSave(
-      file.buffer,
-      rucContribuyenteBody,
-    );
-    let ocrResult = await this.ocrService.extractText(rutaImagenGuardada);
+    // 2. Procesamiento de Imagen y Subida a Cloudflare R2
+    const { url: urlCloudflare, buffer: bufferOptimizada } =
+      await this.imageService.optimizeAndSave(
+        file.buffer,
+        rucContribuyenteBody,
+      );
+
+    // Le pasamos el BUFFER a Tesseract, no la URL
+    let ocrResult = await this.ocrService.extractText(bufferOptimizada);
 
     // Hacemos un primer escaneo con lo que leyó Tesseract
     let datosExtraidos = this.regexService.parseOcrText(
@@ -90,7 +93,9 @@ export class OcrTaxController {
       this.logger.warn(
         'Tesseract falló en extraer datos clave o dudó. Rescatando con Google Vision...',
       );
-      ocrResult = await this.visionService.extractText(rutaImagenGuardada);
+
+      // Le pasamos el BUFFER a Google Vision
+      ocrResult = await this.visionService.extractText(bufferOptimizada);
 
       // Volvemos a pasar el Regex, pero esta vez sobre el texto perfecto de Google Vision
       datosExtraidos = this.regexService.parseOcrText(
@@ -189,7 +194,7 @@ export class OcrTaxController {
       iva_10: iva10, // Insertamos el cálculo matemático
       iva_5: iva5, // Insertamos el cálculo matemático
 
-      url_foto_webp: rutaImagenGuardada,
+      url_foto_webp: urlCloudflare, // <-- Guardamos la URL de Cloudflare R2
       confianza_ocr: Math.round(ocrResult.confidence),
       estado_ocr: estadoRevision,
     });
@@ -203,7 +208,7 @@ export class OcrTaxController {
       comprobante_id: comprobanteGuardado.id,
       estado_ocr: estadoRevision,
       confianza: Math.round(ocrResult.confidence) + '%',
-      imagen_url: rutaImagenGuardada,
+      imagen_url: urlCloudflare, // <-- Devolvemos la URL de Cloudflare R2
       datos_identificados: {
         ...datosExtraidos,
         razonSocialOficial: razonSocialEmisor,
