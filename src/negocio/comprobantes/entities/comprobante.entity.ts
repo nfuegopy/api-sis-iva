@@ -15,6 +15,17 @@ export enum TipoPapel {
   PREIMPRESO = 'PREIMPRESO',
 }
 
+export enum TipoGastoIRP {
+  ALIMENTACION = 'ALIMENTACION',
+  SALUD = 'SALUD',
+  EDUCACION = 'EDUCACION',
+  VIVIENDA = 'VIVIENDA',
+  VESTIMENTA = 'VESTIMENTA',
+  ESPARCIMIENTO = 'ESPARCIMIENTO',
+  CAPACITACION = 'CAPACITACION',
+  OTROS = 'OTROS',
+}
+
 @Entity('comprobantes')
 export class Comprobante {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
@@ -82,4 +93,11 @@ export class Comprobante {
     nullable: true,
   })
   estado_ocr: string;
+
+  @Column({
+    type: 'enum',
+    enum: TipoGastoIRP,
+    default: TipoGastoIRP.OTROS,
+  })
+  tipo_gasto: TipoGastoIRP;
 }
