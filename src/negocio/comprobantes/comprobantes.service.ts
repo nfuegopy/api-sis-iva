@@ -6,11 +6,21 @@ import { CreateComprobanteDto } from './dto/create-comprobante.dto';
 import { UpdateComprobanteDto } from './dto/update-comprobante.dto';
 import { Comprobante } from './entities/comprobante.entity';
 
+// NUEVO: Importamos la entidad y el Enum de la IA
+import {
+  OcrEntrenamiento,
+  EstadoEntrenamiento,
+} from '../ocr-tax/entities/ocr-entrenamiento.entity';
+
 @Injectable()
 export class ComprobantesService {
   constructor(
     @InjectRepository(Comprobante)
     private readonly comprobanteRepository: Repository<Comprobante>,
+
+    // NUEVO: Inyectamos el repositorio de entrenamiento
+    @InjectRepository(OcrEntrenamiento)
+    private readonly ocrEntrenamientoRepo: Repository<OcrEntrenamiento>,
   ) {}
 
   async create(
@@ -21,7 +31,6 @@ export class ComprobantesService {
     return await this.comprobanteRepository.save(nuevoComprobante);
   }
 
-  // Permite filtrar comprobantes por contribuyente (crucial para estados de cuenta)
   async findAll(contribuyente_id?: number): Promise<Comprobante[]> {
     const whereCondition = contribuyente_id ? { contribuyente_id } : {};
     return await this.comprobanteRepository.find({
@@ -45,9 +54,23 @@ export class ComprobantesService {
     id: number,
     updateComprobanteDto: UpdateComprobanteDto,
   ): Promise<Comprobante> {
+    // 1. Buscamos y actualizamos la tabla principal (La contabilidad)
     const comprobante = await this.findOne(id);
     this.comprobanteRepository.merge(comprobante, updateComprobanteDto);
-    return await this.comprobanteRepository.save(comprobante);
+    const comprobanteActualizado =
+      await this.comprobanteRepository.save(comprobante);
+
+    if (updateComprobanteDto.estado_ocr === 'VERIFICADO_HUMANO') {
+      await this.ocrEntrenamientoRepo.update(
+        { comprobante_id: id },
+        {
+          json_humano: { ...comprobanteActualizado } as any,
+          estado_entrenamiento: EstadoEntrenamiento.LISTO_PARA_ENTRENAR,
+        },
+      );
+    }
+
+    return comprobanteActualizado;
   }
 
   async remove(id: number): Promise<void> {

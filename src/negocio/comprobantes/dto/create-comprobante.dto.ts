@@ -10,7 +10,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import { TipoPapel } from '../entities/comprobante.entity';
+import { TipoPapel, TipoGastoIRP } from '../entities/comprobante.entity';
 
 export class CreateComprobanteDto {
   @IsInt()
@@ -77,4 +77,12 @@ export class CreateComprobanteDto {
   @IsNumber()
   @IsOptional()
   confianza_ocr?: number;
+
+  @IsString()
+  @IsOptional()
+  estado_ocr?: string;
+
+  @IsEnum(TipoGastoIRP)
+  @IsOptional()
+  tipo_gasto?: TipoGastoIRP;
 }
