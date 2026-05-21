@@ -1,7 +1,7 @@
 // src/negocio/ocr-tax/services/regex-parser/regex-parser.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { OcrNormalizerHelper } from '../../helpers/ocr-normalizer.helper';
-
+import { CondicionOperacionHelper } from '../../helpers/condicion-operacion.helper';
 export interface InvoiceData {
   ruc?: string;
   nroComprobante?: string;
@@ -12,6 +12,9 @@ export interface InvoiceData {
   gravada10?: string;
   gravada5?: string;
   exenta?: string;
+  // --- NUEVOS CAMPOS SET ---
+  tipoComprobanteSet?: number;
+  condicionOperacion?: number;
 }
 
 @Injectable()
@@ -20,7 +23,7 @@ export class RegexParserService {
 
   parseOcrText(rawText: string, rucCliente: string): InvoiceData {
     this.logger.log(
-      'Iniciando extracción con contexto para facturas de Paraguay...',
+      'Iniciando extracción con contexto para facturas y tickets de Paraguay...',
     );
     const data: InvoiceData = {};
     const textSafe = rawText.toUpperCase(); // Normalizamos a mayúsculas para simplificar regex
@@ -42,6 +45,7 @@ export class RegexParserService {
     }
 
     // 2. Número de Comprobante
+    // Ajustado para ser un poco más flexible con los tickets que a veces no traen los 3-3-7 exactos
     const comprobanteRegex =
       /(?:N[°º]?\s*)?([0O\d]{3}[\s.-]*[0O\d]{3}[\s.-]*\d{7})/i;
     const compMatch = textSafe.match(comprobanteRegex);
@@ -115,6 +119,29 @@ export class RegexParserService {
       /(?:EXENTAS?|TOTAL EXENTO)[\s:.\-_]{0,30}?((?:\d{1,3}(?:[.,]\d{3})+)|[0-9]+)/i;
     const matchExenta = textSafe.match(regexExenta);
     if (matchExenta) data.exenta = matchExenta[1];
+
+    // =========================================================================
+    // 8. TIPO DE COMPROBANTE SET (109 = Factura, 112 = Ticket, etc.)
+    // =========================================================================
+    const ticketRegex =
+      /\b(TICKET|MAQ\.? REG|M[AÁ]QUINA REGISTRADORA|NRO\.? SERIE)\b/i;
+    if (ticketRegex.test(textSafe)) {
+      data.tipoComprobanteSet = 112;
+      this.logger.debug(
+        'Identificado como Ticket de Máquina Registradora (112)',
+      );
+    } else {
+      data.tipoComprobanteSet = 109; // Factura por defecto
+      this.logger.debug('Identificado como Factura (109)');
+    }
+
+    // =========================================================================
+    // 9. CONDICIÓN DE LA OPERACIÓN (Delega al Helper Especializado)
+    // =========================================================================
+    data.condicionOperacion = CondicionOperacionHelper.extraerCondicion(
+      rawText,
+      data.tipoComprobanteSet,
+    );
 
     return data;
   }

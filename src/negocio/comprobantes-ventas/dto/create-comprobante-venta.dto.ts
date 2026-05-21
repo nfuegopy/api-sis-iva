@@ -1,8 +1,6 @@
 /* eslint-disable prettier/prettier */
-
 import {
   IsDateString,
-  IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -10,9 +8,8 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import { TipoPapel, TipoGastoIRP } from '../entities/comprobante.entity';
 
-export class CreateComprobanteDto {
+export class CreateComprobanteVentaDto {
   @IsInt()
   @IsNotEmpty()
   contribuyente_id: number;
@@ -27,19 +24,27 @@ export class CreateComprobanteDto {
   @MaxLength(8)
   timbrado: string;
 
+  @IsDateString()
+  @IsNotEmpty()
+  fecha_emision: string;
+
+  @IsInt()
+  @IsOptional()
+  tipo_comprobante_set?: number;
+
+  @IsInt()
+  @IsOptional()
+  condicion_operacion?: number;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(20)
-  ruc_emisor: string;
+  ruc_cliente: string;
 
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  razon_social_emisor: string;
-
-  @IsDateString()
-  @IsNotEmpty()
-  fecha_emision: string;
+  razon_social_cliente: string;
 
   @IsNumber()
   @IsOptional()
@@ -65,15 +70,6 @@ export class CreateComprobanteDto {
   @IsNotEmpty()
   monto_total: number;
 
-  // --- NUEVOS CAMPOS REQUERIDOS POR LA SET ---
-  @IsInt()
-  @IsOptional()
-  tipo_comprobante_set?: number;
-
-  @IsInt()
-  @IsOptional()
-  condicion_operacion?: number;
-
   @IsString()
   @MaxLength(1)
   @IsOptional()
@@ -95,39 +91,15 @@ export class CreateComprobanteDto {
   imputa_irp?: string;
 
   @IsString()
-  @MaxLength(1)
-  @IsOptional()
-  no_imputa?: string;
-
-  @IsString()
-  @MaxLength(15)
-  @IsOptional()
-  comprobante_asociado?: string;
-
-  @IsString()
-  @MaxLength(8)
-  @IsOptional()
-  timbrado_asociado?: string;
-  // -------------------------------------------
-
-  @IsString()
   @IsOptional()
   @MaxLength(255)
   url_foto_webp?: string;
-
-  @IsEnum(TipoPapel)
-  @IsOptional()
-  tipo_papel?: TipoPapel;
-
-  @IsNumber()
-  @IsOptional()
-  confianza_ocr?: number;
 
   @IsString()
   @IsOptional()
   estado_ocr?: string;
 
-  @IsEnum(TipoGastoIRP)
+  @IsNumber()
   @IsOptional()
-  tipo_gasto?: TipoGastoIRP;
+  confianza_ocr?: number;
 }
