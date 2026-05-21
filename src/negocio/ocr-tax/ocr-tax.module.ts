@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OcrTaxController } from './ocr-tax.controller';
@@ -11,17 +12,20 @@ import { InvoiceParaguayValidatorService } from './services/tax-validation/invoi
 import { Contribuyente } from '../contribuyentes/entities/contribuyente.entity';
 import { Comprobante } from '../comprobantes/entities/comprobante.entity';
 import { SetRuc } from './entities/set-ruc.entity';
-// 1. Importamos la nueva entidad de ventas
 import { ComprobanteVenta } from '../comprobantes-ventas/entities/comprobante-venta.entity';
+
+// 🛡️ NUEVO: Importamos la entidad de Asignaciones Contables para el Portero
+import { AsignacionContable } from '../asignaciones-contables/entities/asignacion-contable.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Contribuyente,
       Comprobante,
+      ComprobanteVenta,
       SetRuc,
       OcrEntrenamiento,
-      ComprobanteVenta, // 2. La agregamos al TypeORM feature
+      AsignacionContable, // Agregado al TypeORM feature
     ]),
   ],
   controllers: [OcrTaxController],

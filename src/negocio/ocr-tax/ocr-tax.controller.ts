@@ -5,6 +5,8 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  ForbiddenException,
+  UseGuards,
   Body,
   Logger,
 } from '@nestjs/common';
@@ -30,6 +32,11 @@ import {
   OcrEntrenamiento,
   EstadoEntrenamiento,
 } from './entities/ocr-entrenamiento.entity';
+import { AsignacionContable } from '../asignaciones-contables/entities/asignacion-contable.entity';
+
+// Decoradores de Seguridad
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ApiKeyGuard } from '../../common/guards/api-key.guard'; // <-- Descomentar cuando el AuthGuard esté configurado en tus rutas
 
 @Controller('ocr-tax')
 export class OcrTaxController {
@@ -52,16 +59,20 @@ export class OcrTaxController {
     private readonly setRucsRepo: Repository<SetRuc>,
     @InjectRepository(OcrEntrenamiento)
     private readonly ocrEntrenamientoRepo: Repository<OcrEntrenamiento>,
+    @InjectRepository(AsignacionContable)
+    private readonly asignacionRepo: Repository<AsignacionContable>,
   ) {}
 
   // =========================================================================
   // ENDPOINT 1: EGRESOS / COMPRAS (Tickets de Supermercado, Facturas de Proveedores)
   // =========================================================================
+  @UseGuards(ApiKeyGuard)
   @Post('extraer/compra')
   @UseInterceptors(FileInterceptor('imagen'))
   async extraerCompra(
     @UploadedFile() file: Express.Multer.File,
     @Body('ruc') rucContribuyenteBody: string,
+    @CurrentUser() usuarioLogueado: any,
   ) {
     if (!file)
       throw new BadRequestException('Debe subir una imagen del comprobante.');
@@ -78,6 +89,36 @@ export class OcrTaxController {
         'El RUC ingresado no pertenece a ningún contribuyente registrado.',
       );
     }
+
+    // --- 🛡️ EL PORTERO DE SEGURIDAD 🛡️ ---
+    const userId = usuarioLogueado?.id || 1;
+
+    // Leemos del .env, si no hay .env, usamos nuestro respaldo que incluye 'CONTADOR'
+    const rolesMaestrosEnv =
+      process.env.ROLES_MAESTROS ||
+      'ADMIN, ADMINISTRADOR, MASTER, SUPERADMIN, CONTADOR';
+    const rolesAdministrativos = rolesMaestrosEnv
+      .split(',')
+      .map((rol) => rol.trim().toUpperCase());
+
+    const rolUsuario = (usuarioLogueado?.rol?.nombre || '')
+      .toUpperCase()
+      .trim();
+    const esAdminTotal = rolesAdministrativos.includes(rolUsuario);
+
+    const tienePermiso = await this.asignacionRepo.findOne({
+      where: { usuario_id: userId, contribuyente_id: cliente.id },
+    });
+
+    if (!tienePermiso && !esAdminTotal) {
+      this.logger.warn(
+        `Acceso Denegado: Usuario ${userId} con rol ${rolUsuario} intentó procesar RUC ${rucContribuyenteBody}`,
+      );
+      throw new ForbiddenException(
+        'No tienes permisos asignados para gestionar los comprobantes de este RUC.',
+      );
+    }
+    // ---------------------------------------
 
     const { url: urlCloudflare, buffer: bufferOptimizada } =
       await this.imageService.optimizeAndSave(
@@ -148,7 +189,6 @@ export class OcrTaxController {
       ? fechaConvertida.toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0];
 
-    // 1. Guardar el Comprobante de Compra con los campos de la SET
     const nuevoComprobante = this.comprobanteRepo.create({
       contribuyente_id: cliente.id,
       ruc_emisor: datosExtraidos.ruc || 'A CONFIRMAR',
@@ -166,8 +206,6 @@ export class OcrTaxController {
       url_foto_webp: urlCloudflare,
       confianza_ocr: Math.round(ocrResult.confidence),
       estado_ocr: estadoRevision,
-
-      // NUEVOS CAMPOS SET
       tipo_comprobante_set: datosExtraidos.tipoComprobanteSet || 109,
       condicion_operacion: datosExtraidos.condicionOperacion || 1,
       imputa_iva: 'S',
@@ -180,9 +218,8 @@ export class OcrTaxController {
     const comprobanteGuardado =
       await this.comprobanteRepo.save(nuevoComprobante);
 
-    // 2. Guardar la cápsula vinculada a comprobante_id
     const nuevaCapsula = this.ocrEntrenamientoRepo.create({
-      comprobante_id: comprobanteGuardado.id, // VINCULADO A COMPRA
+      comprobante_id: comprobanteGuardado.id,
       url_imagen: urlCloudflare,
       json_maquina: {
         texto_crudo_leido: ocrResult.rawText,
@@ -203,11 +240,13 @@ export class OcrTaxController {
   // =========================================================================
   // ENDPOINT 2: INGRESOS / VENTAS (Facturas emitidas por el contribuyente)
   // =========================================================================
+  @UseGuards(ApiKeyGuard)
   @Post('extraer/venta')
   @UseInterceptors(FileInterceptor('imagen'))
   async extraerVenta(
     @UploadedFile() file: Express.Multer.File,
     @Body('ruc') rucContribuyenteBody: string,
+    @CurrentUser() usuarioLogueado: any,
   ) {
     if (!file) throw new BadRequestException('Debe subir una imagen.');
     if (!rucContribuyenteBody)
@@ -224,6 +263,36 @@ export class OcrTaxController {
       );
     }
 
+    // --- 🛡️ EL PORTERO DE SEGURIDAD 🛡️ ---
+    const userId = usuarioLogueado?.id || 1;
+
+    // Leemos del .env, si no hay .env, usamos nuestro respaldo que incluye 'CONTADOR'
+    const rolesMaestrosEnv =
+      process.env.ROLES_MAESTROS ||
+      'ADMIN, ADMINISTRADOR, MASTER, SUPERADMIN, CONTADOR';
+    const rolesAdministrativos = rolesMaestrosEnv
+      .split(',')
+      .map((rol) => rol.trim().toUpperCase());
+
+    const rolUsuario = (usuarioLogueado?.rol?.nombre || '')
+      .toUpperCase()
+      .trim();
+    const esAdminTotal = rolesAdministrativos.includes(rolUsuario);
+
+    const tienePermiso = await this.asignacionRepo.findOne({
+      where: { usuario_id: userId, contribuyente_id: cliente.id },
+    });
+
+    if (!tienePermiso && !esAdminTotal) {
+      this.logger.warn(
+        `Acceso Denegado: Usuario ${userId} con rol ${rolUsuario} intentó procesar VENTA al RUC ${rucContribuyenteBody}`,
+      );
+      throw new ForbiddenException(
+        'No tienes permisos asignados para gestionar los comprobantes de este RUC.',
+      );
+    }
+    // ---------------------------------------
+
     const { url: urlCloudflare, buffer: bufferOptimizada } =
       await this.imageService.optimizeAndSave(
         file.buffer,
@@ -231,8 +300,6 @@ export class OcrTaxController {
       );
 
     let ocrResult = await this.ocrService.extractText(bufferOptimizada);
-
-    // Aquí el regexService hace su magia. Como es Venta, el RUC extraído es el del CLIENTE
     let datosExtraidos = this.regexService.parseOcrText(
       ocrResult.rawText,
       rucContribuyenteBody,
@@ -268,7 +335,6 @@ export class OcrTaxController {
       ? fechaConvertida.toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0];
 
-    // 1. Guardar la Venta
     const nuevaVenta = this.comprobanteVentaRepo.create({
       contribuyente_id: cliente.id,
       ruc_cliente: datosExtraidos.ruc || 'A CONFIRMAR',
@@ -281,17 +347,14 @@ export class OcrTaxController {
       url_foto_webp: urlCloudflare,
       confianza_ocr: Math.round(ocrResult.confidence),
       estado_ocr: 'REQUIERE_REVISION',
-
-      // SET Campos (Por defecto 109 Factura para Ventas)
       tipo_comprobante_set: datosExtraidos.tipoComprobanteSet || 109,
       condicion_operacion: datosExtraidos.condicionOperacion || 1,
     });
 
     const ventaGuardada = await this.comprobanteVentaRepo.save(nuevaVenta);
 
-    // 2. Guardar la cápsula vinculada a comprobante_venta_id
     const nuevaCapsula = this.ocrEntrenamientoRepo.create({
-      comprobante_venta_id: ventaGuardada.id, // VINCULADO A VENTA
+      comprobante_venta_id: ventaGuardada.id,
       url_imagen: urlCloudflare,
       json_maquina: {
         texto_crudo_leido: ocrResult.rawText,

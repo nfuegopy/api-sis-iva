@@ -79,7 +79,13 @@ export class ComprobanteVenta {
   @Column({ type: 'char', length: 1, default: 'S' })
   imputa_irp: string;
   // ---------------------------------
+  // --- NUEVOS CAMPOS PARA LA BOLSA COMÚN (UBER) ---
+  @Column({ type: 'int', unsigned: true, nullable: true })
+  revisor_id: number; // Guardará el ID del contador que reclamó la factura
 
+  @Column({ type: 'timestamp', nullable: true })
+  fecha_reclamado: Date; // Para saber hace cuánto tiempo la está revisando
+  // ------------------------------------------------
   @Column({ type: 'varchar', length: 255, nullable: true })
   url_foto_webp: string;
 
