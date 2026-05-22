@@ -37,7 +37,7 @@ import { AsignacionesContablesModule } from './negocio/asignaciones-contables/as
 import { SuscripcionesModule } from './negocio/suscripciones/suscripciones.module';
 import { CuotasPagosModule } from './negocio/cuotas-pagos/cuotas-pagos.module';
 import { OcrTaxModule } from './negocio/ocr-tax/ocr-tax.module';
-
+import { ExportacionesModule } from './negocio/exportaciones/exportaciones.module';
 @Module({
   imports: [
     // Configuración de variables de entorno
@@ -86,6 +86,7 @@ import { OcrTaxModule } from './negocio/ocr-tax/ocr-tax.module';
     SuscripcionesModule,
     CuotasPagosModule,
     OcrTaxModule,
+    ExportacionesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
