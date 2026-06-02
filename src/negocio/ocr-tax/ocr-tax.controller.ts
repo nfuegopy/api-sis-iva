@@ -5,8 +5,8 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
-  ForbiddenException,
-  UseGuards,
+  // ForbiddenException, // Comentado temporalmente
+  // UseGuards, // Comentado temporalmente
   Body,
   Logger,
 } from '@nestjs/common';
@@ -36,7 +36,7 @@ import { AsignacionContable } from '../asignaciones-contables/entities/asignacio
 
 // Decoradores de Seguridad
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ApiKeyGuard } from '../../common/guards/api-key.guard'; // <-- Descomentar cuando el AuthGuard esté configurado en tus rutas
+// import { ApiKeyGuard } from '../../common/guards/api-key.guard'; // <-- Desactivado para pruebas
 
 @Controller('ocr-tax')
 export class OcrTaxController {
@@ -66,13 +66,13 @@ export class OcrTaxController {
   // =========================================================================
   // ENDPOINT 1: EGRESOS / COMPRAS (Tickets de Supermercado, Facturas de Proveedores)
   // =========================================================================
-  @UseGuards(ApiKeyGuard)
+  // @UseGuards(ApiKeyGuard) <-- GUARD DESACTIVADO
   @Post('extraer/compra')
   @UseInterceptors(FileInterceptor('imagen'))
   async extraerCompra(
     @UploadedFile() file: Express.Multer.File,
     @Body('ruc') rucContribuyenteBody: string,
-    @CurrentUser() usuarioLogueado: any,
+    @CurrentUser() usuarioLogueado: any, // Lo dejamos por si pasas token, pero no bloquea si no lo pasas
   ) {
     if (!file)
       throw new BadRequestException('Debe subir una imagen del comprobante.');
@@ -91,33 +91,7 @@ export class OcrTaxController {
     }
 
     // --- 🛡️ EL PORTERO DE SEGURIDAD 🛡️ ---
-    const userId = usuarioLogueado?.id || 1;
-
-    // Leemos del .env, si no hay .env, usamos nuestro respaldo que incluye 'CONTADOR'
-    const rolesMaestrosEnv =
-      process.env.ROLES_MAESTROS ||
-      'ADMIN, ADMINISTRADOR, MASTER, SUPERADMIN, CONTADOR';
-    const rolesAdministrativos = rolesMaestrosEnv
-      .split(',')
-      .map((rol) => rol.trim().toUpperCase());
-
-    const rolUsuario = (usuarioLogueado?.rol?.nombre || '')
-      .toUpperCase()
-      .trim();
-    const esAdminTotal = rolesAdministrativos.includes(rolUsuario);
-
-    const tienePermiso = await this.asignacionRepo.findOne({
-      where: { usuario_id: userId, contribuyente_id: cliente.id },
-    });
-
-    if (!tienePermiso && !esAdminTotal) {
-      this.logger.warn(
-        `Acceso Denegado: Usuario ${userId} con rol ${rolUsuario} intentó procesar RUC ${rucContribuyenteBody}`,
-      );
-      throw new ForbiddenException(
-        'No tienes permisos asignados para gestionar los comprobantes de este RUC.',
-      );
-    }
+    // ELIMINADO TEMPORALMENTE PARA PERMITIR ENVÍOS LIBRES SIN RESTRICCIONES
     // ---------------------------------------
 
     const { url: urlCloudflare, buffer: bufferOptimizada } =
@@ -240,7 +214,7 @@ export class OcrTaxController {
   // =========================================================================
   // ENDPOINT 2: INGRESOS / VENTAS (Facturas emitidas por el contribuyente)
   // =========================================================================
-  @UseGuards(ApiKeyGuard)
+  // @UseGuards(ApiKeyGuard) <-- GUARD DESACTIVADO
   @Post('extraer/venta')
   @UseInterceptors(FileInterceptor('imagen'))
   async extraerVenta(
@@ -264,33 +238,7 @@ export class OcrTaxController {
     }
 
     // --- 🛡️ EL PORTERO DE SEGURIDAD 🛡️ ---
-    const userId = usuarioLogueado?.id || 1;
-
-    // Leemos del .env, si no hay .env, usamos nuestro respaldo que incluye 'CONTADOR'
-    const rolesMaestrosEnv =
-      process.env.ROLES_MAESTROS ||
-      'ADMIN, ADMINISTRADOR, MASTER, SUPERADMIN, CONTADOR';
-    const rolesAdministrativos = rolesMaestrosEnv
-      .split(',')
-      .map((rol) => rol.trim().toUpperCase());
-
-    const rolUsuario = (usuarioLogueado?.rol?.nombre || '')
-      .toUpperCase()
-      .trim();
-    const esAdminTotal = rolesAdministrativos.includes(rolUsuario);
-
-    const tienePermiso = await this.asignacionRepo.findOne({
-      where: { usuario_id: userId, contribuyente_id: cliente.id },
-    });
-
-    if (!tienePermiso && !esAdminTotal) {
-      this.logger.warn(
-        `Acceso Denegado: Usuario ${userId} con rol ${rolUsuario} intentó procesar VENTA al RUC ${rucContribuyenteBody}`,
-      );
-      throw new ForbiddenException(
-        'No tienes permisos asignados para gestionar los comprobantes de este RUC.',
-      );
-    }
+    // ELIMINADO TEMPORALMENTE PARA PERMITIR ENVÍOS LIBRES SIN RESTRICCIONES
     // ---------------------------------------
 
     const { url: urlCloudflare, buffer: bufferOptimizada } =
