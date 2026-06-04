@@ -8,12 +8,15 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { MenuRolService } from './menu-rol.service';
 import { CreateMenuRolDto } from './dto/create-menu-rol.dto';
 import { UpdateMenuRolDto } from './dto/update-menu-rol.dto';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
 @Controller('menu-rol')
+@UseGuards(JwtAuthGuard)
 export class MenuRolController {
   constructor(private readonly menuRolService: MenuRolService) {}
 

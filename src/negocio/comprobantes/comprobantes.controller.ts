@@ -9,13 +9,19 @@ import {
   Delete,
   ParseIntPipe,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ComprobantesService } from './comprobantes.service';
 import { CreateComprobanteDto } from './dto/create-comprobante.dto';
 import { UpdateComprobanteDto } from './dto/update-comprobante.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
 @Controller('negocio/comprobantes')
+@UseGuards(JwtAuthGuard, MenuRolGuard)
+@RequierePermiso('/negocio/comprobantes')
 export class ComprobantesController {
   constructor(private readonly comprobantesService: ComprobantesService) {}
 
@@ -33,11 +39,9 @@ export class ComprobantesController {
     @Param('id', ParseIntPipe) idComprobante: number,
     @CurrentUser() usuarioLogueado: any,
   ) {
-    // Si aún no tienes el AuthGuard activado, simulamos el ID del contador (ej: 999)
-    const contadorId = usuarioLogueado?.id || 999;
     return this.comprobantesService.reclamarParaRevision(
       idComprobante,
-      contadorId,
+      usuarioLogueado.id,
     );
   }
 

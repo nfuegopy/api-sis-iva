@@ -9,12 +9,18 @@ import {
   Delete,
   ParseIntPipe,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { AsignacionesContablesService } from './asignaciones-contables.service';
 import { CreateAsignacionContableDto } from './dto/create-asignacion-contable.dto';
 import { UpdateAsignacionContableDto } from './dto/update-asignacion-contable.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
 @Controller('negocio/asignaciones-contables')
+@UseGuards(JwtAuthGuard, MenuRolGuard)
+@RequierePermiso('/negocio/asignaciones-contables')
 export class AsignacionesContablesController {
   constructor(
     private readonly asignacionesService: AsignacionesContablesService,

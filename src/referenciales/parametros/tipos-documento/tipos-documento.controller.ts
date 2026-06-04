@@ -8,12 +8,15 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { TiposDocumentoService } from './tipos-documento.service';
 import { CreateTipoDocumentoDto } from './dto/create-tipos-documento.dto';
 import { UpdateTipoDocumentoDto } from './dto/update-tipos-documento.dto';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
 @Controller('tipos-documento')
+@UseGuards(JwtAuthGuard)
 export class TiposDocumentoController {
   constructor(private readonly tiposDocumentoService: TiposDocumentoService) {}
 

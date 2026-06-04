@@ -8,12 +8,15 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { GrupoMenuService } from './grupo-menu.service';
 import { CreateGrupoMenuDto } from './dto/create-grupo-menu.dto';
 import { UpdateGrupoMenuDto } from './dto/update-grupo-menu.dto';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 
 @Controller('grupo-menu')
+@UseGuards(JwtAuthGuard)
 export class GrupoMenuController {
   constructor(private readonly grupoMenuService: GrupoMenuService) {}
 

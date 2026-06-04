@@ -20,14 +20,6 @@ export class AuthService {
     pass: string,
   ): Promise<ValidatedUser | null> {
     const user = await this.usuariosService.findByEmail(email);
-    console.log('--- DEBUG LOGIN ---');
-    console.log('Email recibido en la API:', email);
-    console.log('Contraseña recibida:', pass);
-    console.log('Usuario encontrado en BD:', user);
-    const hashCorrecto = await bcrypt.hash('123456', 10);
-    console.log(
-      `EJECUTA ESTO EN TU BD: UPDATE usuarios SET password = '${hashCorrecto}' WHERE id = 1;`,
-    );
 
     if (user && (await bcrypt.compare(pass, user.password))) {
       // Ignoramos 'password' explícitamente para que ESLint no se queje

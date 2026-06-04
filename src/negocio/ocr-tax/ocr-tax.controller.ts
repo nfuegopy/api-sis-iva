@@ -5,8 +5,8 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
-  // ForbiddenException, // Comentado temporalmente
-  // UseGuards, // Comentado temporalmente
+  ForbiddenException,
+  UseGuards,
   Body,
   Logger,
 } from '@nestjs/common';
@@ -36,9 +36,13 @@ import { AsignacionContable } from '../asignaciones-contables/entities/asignacio
 
 // Decoradores de Seguridad
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-// import { ApiKeyGuard } from '../../common/guards/api-key.guard'; // <-- Desactivado para pruebas
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
 @Controller('ocr-tax')
+@UseGuards(JwtAuthGuard, MenuRolGuard)
+@RequierePermiso('/ocr-tax')
 export class OcrTaxController {
   private readonly logger = new Logger(OcrTaxController.name);
 
@@ -66,7 +70,6 @@ export class OcrTaxController {
   // =========================================================================
   // ENDPOINT 1: EGRESOS / COMPRAS (Tickets de Supermercado, Facturas de Proveedores)
   // =========================================================================
-  // @UseGuards(ApiKeyGuard) <-- GUARD DESACTIVADO
   @Post('extraer/compra')
   @UseInterceptors(FileInterceptor('imagen'))
   async extraerCompra(
@@ -90,9 +93,15 @@ export class OcrTaxController {
       );
     }
 
-    // --- 🛡️ EL PORTERO DE SEGURIDAD 🛡️ ---
-    // ELIMINADO TEMPORALMENTE PARA PERMITIR ENVÍOS LIBRES SIN RESTRICCIONES
-    // ---------------------------------------
+    // --- Capa 2: verificar asignación del usuario al contribuyente ---
+    const tieneAsignacion = await this.asignacionRepo.findOne({
+      where: { usuario_id: usuarioLogueado.id, contribuyente_id: cliente.id },
+    });
+    if (!tieneAsignacion) {
+      throw new ForbiddenException(
+        'No tenés asignación contable para operar este RUC.',
+      );
+    }
 
     const { url: urlCloudflare, buffer: bufferOptimizada } =
       await this.imageService.optimizeAndSave(
@@ -214,7 +223,6 @@ export class OcrTaxController {
   // =========================================================================
   // ENDPOINT 2: INGRESOS / VENTAS (Facturas emitidas por el contribuyente)
   // =========================================================================
-  // @UseGuards(ApiKeyGuard) <-- GUARD DESACTIVADO
   @Post('extraer/venta')
   @UseInterceptors(FileInterceptor('imagen'))
   async extraerVenta(
@@ -237,9 +245,15 @@ export class OcrTaxController {
       );
     }
 
-    // --- 🛡️ EL PORTERO DE SEGURIDAD 🛡️ ---
-    // ELIMINADO TEMPORALMENTE PARA PERMITIR ENVÍOS LIBRES SIN RESTRICCIONES
-    // ---------------------------------------
+    // --- Capa 2: verificar asignación del usuario al contribuyente ---
+    const tieneAsignacionVenta = await this.asignacionRepo.findOne({
+      where: { usuario_id: usuarioLogueado.id, contribuyente_id: cliente.id },
+    });
+    if (!tieneAsignacionVenta) {
+      throw new ForbiddenException(
+        'No tenés asignación contable para operar este RUC.',
+      );
+    }
 
     const { url: urlCloudflare, buffer: bufferOptimizada } =
       await this.imageService.optimizeAndSave(
