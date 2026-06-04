@@ -14,11 +14,10 @@ import {
 import { PaisService } from './pais.service';
 import { CreatePaisDto } from './dto/create-pais.dto';
 import { UpdatePaisDto } from './dto/update-pais.dto';
-import { ApiKeyGuard } from 'src/common/guards/api-key.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
-// @Controller('pais') define la ruta base para todos los endpoints: http://localhost:3000/pais
 @Controller('pais')
-//@UseGuards(ApiKeyGuard)
+@UseGuards(JwtAuthGuard)
 export class PaisController {
   constructor(private readonly paisService: PaisService) {}
 

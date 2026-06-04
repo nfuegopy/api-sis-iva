@@ -13,11 +13,13 @@ import { Repository, Between } from 'typeorm';
 import { Rg90BuilderService } from './services/rg90-builder.service';
 import { Comprobante } from '../comprobantes/entities/comprobante.entity';
 import { ComprobanteVenta } from '../comprobantes-ventas/entities/comprobante-venta.entity';
-
-// import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'; // Activar luego para proteger
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
 @Controller('negocio/exportaciones')
-// @UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, MenuRolGuard)
+@RequierePermiso('/negocio/exportaciones')
 export class ExportacionesController {
   constructor(
     private readonly rg90Builder: Rg90BuilderService,

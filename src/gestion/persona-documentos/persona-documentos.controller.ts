@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   Controller,
   Get,
@@ -6,12 +7,18 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { PersonaDocumentosService } from './persona-documentos.service';
 import { CreatePersonaDocumentoDto } from './dto/create-persona-documento.dto';
 import { UpdatePersonaDocumentoDto } from './dto/update-persona-documento.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
 @Controller('persona-documentos')
+@UseGuards(JwtAuthGuard, MenuRolGuard)
+@RequierePermiso('/persona-documentos')
 export class PersonaDocumentosController {
   constructor(
     private readonly personaDocumentosService: PersonaDocumentosService,

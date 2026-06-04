@@ -9,12 +9,18 @@ import {
   Delete,
   ParseIntPipe,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { CuotasPagosService } from './cuotas-pagos.service';
 import { CreateCuotaPagoDto } from './dto/create-cuota-pago.dto';
 import { UpdateCuotaPagoDto } from './dto/update-cuota-pago.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
 @Controller('cobranzas/cuotas-pagos')
+@UseGuards(JwtAuthGuard, MenuRolGuard)
+@RequierePermiso('/cobranzas/cuotas-pagos')
 export class CuotasPagosController {
   constructor(private readonly cuotasPagosService: CuotasPagosService) {}
 

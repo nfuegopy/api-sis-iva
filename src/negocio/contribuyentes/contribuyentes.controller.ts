@@ -8,12 +8,18 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { ContribuyentesService } from './contribuyentes.service';
 import { CreateContribuyenteDto } from './dto/create-contribuyente.dto';
 import { UpdateContribuyenteDto } from './dto/update-contribuyente.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
 @Controller('negocio/contribuyentes')
+@UseGuards(JwtAuthGuard, MenuRolGuard)
+@RequierePermiso('/negocio/contribuyentes')
 export class ContribuyentesController {
   constructor(private readonly contribuyentesService: ContribuyentesService) {}
 

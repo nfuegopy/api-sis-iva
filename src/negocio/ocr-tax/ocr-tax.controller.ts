@@ -36,9 +36,13 @@ import { AsignacionContable } from '../asignaciones-contables/entities/asignacio
 
 // Decoradores de Seguridad
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ApiKeyGuard } from '../../common/guards/api-key.guard'; // <-- Descomentar cuando el AuthGuard esté configurado en tus rutas
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
 @Controller('ocr-tax')
+@UseGuards(JwtAuthGuard, MenuRolGuard)
+@RequierePermiso('/ocr-tax')
 export class OcrTaxController {
   private readonly logger = new Logger(OcrTaxController.name);
 
@@ -66,13 +70,12 @@ export class OcrTaxController {
   // =========================================================================
   // ENDPOINT 1: EGRESOS / COMPRAS (Tickets de Supermercado, Facturas de Proveedores)
   // =========================================================================
-  @UseGuards(ApiKeyGuard)
   @Post('extraer/compra')
   @UseInterceptors(FileInterceptor('imagen'))
   async extraerCompra(
     @UploadedFile() file: Express.Multer.File,
     @Body('ruc') rucContribuyenteBody: string,
-    @CurrentUser() usuarioLogueado: any,
+    @CurrentUser() usuarioLogueado: any, // Lo dejamos por si pasas token, pero no bloquea si no lo pasas
   ) {
     if (!file)
       throw new BadRequestException('Debe subir una imagen del comprobante.');
@@ -90,35 +93,15 @@ export class OcrTaxController {
       );
     }
 
-    // --- 🛡️ EL PORTERO DE SEGURIDAD 🛡️ ---
-    const userId = usuarioLogueado?.id || 1;
-
-    // Leemos del .env, si no hay .env, usamos nuestro respaldo que incluye 'CONTADOR'
-    const rolesMaestrosEnv =
-      process.env.ROLES_MAESTROS ||
-      'ADMIN, ADMINISTRADOR, MASTER, SUPERADMIN, CONTADOR';
-    const rolesAdministrativos = rolesMaestrosEnv
-      .split(',')
-      .map((rol) => rol.trim().toUpperCase());
-
-    const rolUsuario = (usuarioLogueado?.rol?.nombre || '')
-      .toUpperCase()
-      .trim();
-    const esAdminTotal = rolesAdministrativos.includes(rolUsuario);
-
-    const tienePermiso = await this.asignacionRepo.findOne({
-      where: { usuario_id: userId, contribuyente_id: cliente.id },
+    // --- Capa 2: verificar asignación del usuario al contribuyente ---
+    const tieneAsignacion = await this.asignacionRepo.findOne({
+      where: { usuario_id: usuarioLogueado.id, contribuyente_id: cliente.id },
     });
-
-    if (!tienePermiso && !esAdminTotal) {
-      this.logger.warn(
-        `Acceso Denegado: Usuario ${userId} con rol ${rolUsuario} intentó procesar RUC ${rucContribuyenteBody}`,
-      );
+    if (!tieneAsignacion) {
       throw new ForbiddenException(
-        'No tienes permisos asignados para gestionar los comprobantes de este RUC.',
+        'No tenés asignación contable para operar este RUC.',
       );
     }
-    // ---------------------------------------
 
     const { url: urlCloudflare, buffer: bufferOptimizada } =
       await this.imageService.optimizeAndSave(
@@ -240,7 +223,6 @@ export class OcrTaxController {
   // =========================================================================
   // ENDPOINT 2: INGRESOS / VENTAS (Facturas emitidas por el contribuyente)
   // =========================================================================
-  @UseGuards(ApiKeyGuard)
   @Post('extraer/venta')
   @UseInterceptors(FileInterceptor('imagen'))
   async extraerVenta(
@@ -263,35 +245,15 @@ export class OcrTaxController {
       );
     }
 
-    // --- 🛡️ EL PORTERO DE SEGURIDAD 🛡️ ---
-    const userId = usuarioLogueado?.id || 1;
-
-    // Leemos del .env, si no hay .env, usamos nuestro respaldo que incluye 'CONTADOR'
-    const rolesMaestrosEnv =
-      process.env.ROLES_MAESTROS ||
-      'ADMIN, ADMINISTRADOR, MASTER, SUPERADMIN, CONTADOR';
-    const rolesAdministrativos = rolesMaestrosEnv
-      .split(',')
-      .map((rol) => rol.trim().toUpperCase());
-
-    const rolUsuario = (usuarioLogueado?.rol?.nombre || '')
-      .toUpperCase()
-      .trim();
-    const esAdminTotal = rolesAdministrativos.includes(rolUsuario);
-
-    const tienePermiso = await this.asignacionRepo.findOne({
-      where: { usuario_id: userId, contribuyente_id: cliente.id },
+    // --- Capa 2: verificar asignación del usuario al contribuyente ---
+    const tieneAsignacionVenta = await this.asignacionRepo.findOne({
+      where: { usuario_id: usuarioLogueado.id, contribuyente_id: cliente.id },
     });
-
-    if (!tienePermiso && !esAdminTotal) {
-      this.logger.warn(
-        `Acceso Denegado: Usuario ${userId} con rol ${rolUsuario} intentó procesar VENTA al RUC ${rucContribuyenteBody}`,
-      );
+    if (!tieneAsignacionVenta) {
       throw new ForbiddenException(
-        'No tienes permisos asignados para gestionar los comprobantes de este RUC.',
+        'No tenés asignación contable para operar este RUC.',
       );
     }
-    // ---------------------------------------
 
     const { url: urlCloudflare, buffer: bufferOptimizada } =
       await this.imageService.optimizeAndSave(

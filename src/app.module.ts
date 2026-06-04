@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 
 // Módulos Core / Transversales
 import { AuthModule } from './auth/auth.module';
+import { AutorizacionModule } from './common/autorizacion.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { NotificationsModule } from './common/notifications/notifications.module';
 
@@ -53,12 +54,14 @@ import { ExportacionesModule } from './negocio/exportaciones/exportaciones.modul
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
+      charset: 'utf8mb4',        // Soporta acentos, ñ y emojis
       autoLoadEntities: true,
       synchronize: true, // ¡OJO! En producción poner en false
     }),
 
     // Módulos de Infraestructura
     AuthModule,
+    AutorizacionModule,
     FirebaseModule,
     NotificationsModule,
 

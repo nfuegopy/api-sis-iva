@@ -9,12 +9,18 @@ import {
   Delete,
   ParseIntPipe,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { SuscripcionesService } from './suscripciones.service';
 import { CreateSuscripcionDto } from './dto/create-suscripcion.dto';
 import { UpdateSuscripcionDto } from './dto/update-suscripcion.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
 @Controller('cobranzas/suscripciones')
+@UseGuards(JwtAuthGuard, MenuRolGuard)
+@RequierePermiso('/cobranzas/suscripciones')
 export class SuscripcionesController {
   constructor(private readonly suscripcionesService: SuscripcionesService) {}
 
