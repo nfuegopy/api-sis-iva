@@ -29,6 +29,7 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(9031);
+  const port = process.env.PORT || 9031;
+  await app.listen(port);
 }
 bootstrap();
