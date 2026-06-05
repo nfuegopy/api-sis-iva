@@ -9,6 +9,7 @@ import { Repository, IsNull } from 'typeorm';
 import { CreateComprobanteDto } from './dto/create-comprobante.dto';
 import { UpdateComprobanteDto } from './dto/update-comprobante.dto';
 import { Comprobante } from './entities/comprobante.entity';
+import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 
 // Importamos la entidad y el Enum de la IA
 import {
@@ -87,12 +88,19 @@ export class ComprobantesService {
     return await this.comprobanteRepository.save(nuevoComprobante);
   }
 
-  async findAll(contribuyente_id?: number): Promise<Comprobante[]> {
-    const whereCondition = contribuyente_id ? { contribuyente_id } : {};
-    return await this.comprobanteRepository.find({
-      where: whereCondition,
+  async findAll(
+    page = 1,
+    limit = 20,
+    contribuyente_id?: number,
+  ): Promise<PaginatedResult<Comprobante>> {
+    const where = contribuyente_id ? { contribuyente_id } : {};
+    const [data, total] = await this.comprobanteRepository.findAndCount({
+      where,
       order: { fecha_emision: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: number): Promise<Comprobante> {
@@ -131,8 +139,8 @@ export class ComprobantesService {
   }
 
   async remove(id: number): Promise<{ message: string }> {
-    const comprobante = await this.findOne(id);
-    await this.comprobanteRepository.remove(comprobante);
+    await this.findOne(id);
+    await this.comprobanteRepository.softDelete(id);
     return { message: `Comprobante con ID ${id} eliminado.` };
   }
 }

@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { CreateContribuyenteDto } from './dto/create-contribuyente.dto';
 import { UpdateContribuyenteDto } from './dto/update-contribuyente.dto';
 import { Contribuyente } from './entities/contribuyente.entity';
+import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 
 @Injectable()
 export class ContribuyentesService {
@@ -37,8 +38,13 @@ export class ContribuyentesService {
     }
   }
 
-  async findAll(): Promise<Contribuyente[]> {
-    return await this.contribuyenteRepository.find({ relations: ['persona'] });
+  async findAll(page = 1, limit = 20): Promise<PaginatedResult<Contribuyente>> {
+    const [data, total] = await this.contribuyenteRepository.findAndCount({
+      relations: ['persona'],
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: number): Promise<Contribuyente> {
@@ -59,8 +65,8 @@ export class ContribuyentesService {
   }
 
   async remove(id: number): Promise<{ message: string }> {
-    const contribuyente = await this.findOne(id);
-    await this.contribuyenteRepository.remove(contribuyente);
+    await this.findOne(id);
+    await this.contribuyenteRepository.softDelete(id);
     return { message: `Contribuyente con ID ${id} eliminado.` };
   }
 }

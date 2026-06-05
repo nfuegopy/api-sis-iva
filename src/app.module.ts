@@ -3,6 +3,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -29,9 +31,7 @@ import { GrupoMenuModule } from './referenciales/parametros/grupo-menu/grupo-men
 import { MenuRolModule } from './referenciales/parametros/menu-rol/menu-rol.module';
 import { TiposDocumentoModule } from './referenciales/parametros/tipos-documento/tipos-documento.module';
 
-// ==========================================
 // Módulos de Negocio y Cobranzas (SaaS)
-// ==========================================
 import { ContribuyentesModule } from './negocio/contribuyentes/contribuyentes.module';
 import { ComprobantesModule } from './negocio/comprobantes/comprobantes.module';
 import { ComprobantesVentasModule } from './negocio/comprobantes-ventas/comprobantes-ventas.module';
@@ -40,14 +40,11 @@ import { SuscripcionesModule } from './negocio/suscripciones/suscripciones.modul
 import { CuotasPagosModule } from './negocio/cuotas-pagos/cuotas-pagos.module';
 import { OcrTaxModule } from './negocio/ocr-tax/ocr-tax.module';
 import { ExportacionesModule } from './negocio/exportaciones/exportaciones.module';
+
 @Module({
   imports: [
-    // Configuración de variables de entorno
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
 
-    // Conexión a Base de Datos (Asegúrate que coincida con tu .env)
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: process.env.DB_HOST,
@@ -55,35 +52,34 @@ import { ExportacionesModule } from './negocio/exportaciones/exportaciones.modul
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
-      charset: 'utf8mb4',        // Soporta acentos, ñ y emojis
+      charset: 'utf8mb4',
       autoLoadEntities: true,
-      synchronize: false,        // Nunca true en producción — usar migraciones
+      synchronize: false,
     }),
 
-    // Módulos de Infraestructura
+    // Rate limiting global: 100 req/min por IP
+    // El endpoint /auth/login tiene límite propio de 5/min via @Throttle
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+
     AuthModule,
     AutorizacionModule,
     FirebaseModule,
     NotificationsModule,
 
-    // Módulos de Gestión
     UsuariosModule,
     PersonasModule,
     PersonaDocumentosModule,
 
-    // Referenciales Geográficos
     PaisModule,
     DepartamentoModule,
     CiudadModule,
 
-    // Referenciales de Sistema
     RolesModule,
     MenuModule,
     GrupoMenuModule,
     MenuRolModule,
     TiposDocumentoModule,
 
-    // Módulos de Negocio SaaS
     ContribuyentesModule,
     ComprobantesModule,
     ComprobantesVentasModule,
@@ -94,6 +90,10 @@ import { ExportacionesModule } from './negocio/exportaciones/exportaciones.modul
     ExportacionesModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Aplica ThrottlerGuard globalmente a todas las rutas
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

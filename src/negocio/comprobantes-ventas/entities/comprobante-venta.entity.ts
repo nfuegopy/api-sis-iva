@@ -1,11 +1,12 @@
 /* eslint-disable prettier/prettier */
 import {
   Column,
+  CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   PrimaryGeneratedColumn,
   ManyToOne,
   JoinColumn,
-  CreateDateColumn,
 } from 'typeorm';
 import { Contribuyente } from '../../contribuyentes/entities/contribuyente.entity';
 
@@ -109,4 +110,7 @@ export class ComprobanteVenta {
 
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;
+
+  @DeleteDateColumn({ type: 'timestamp', nullable: true, select: false })
+  deleted_at: Date;
 }

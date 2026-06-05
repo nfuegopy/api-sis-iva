@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { PaginacionDto } from '../../common/dto/paginacion.dto';
 
 @Controller('negocio/comprobantes-ventas')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
@@ -38,9 +39,12 @@ export class ComprobantesVentasController {
   }
 
   @Get()
-  findAll(@Query('contribuyente_id') contribuyente_id?: string) {
+  findAll(
+    @Query() paginacion: PaginacionDto,
+    @Query('contribuyente_id') contribuyente_id?: string,
+  ) {
     const id = contribuyente_id ? parseInt(contribuyente_id, 10) : undefined;
-    return this.service.findAll(id);
+    return this.service.findAll(paginacion.page, paginacion.limit, id);
   }
 
   @Get(':id')

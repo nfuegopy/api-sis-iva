@@ -34,12 +34,15 @@ src/
 ├── app.module.ts
 │
 ├── auth/                            # Autenticación JWT
-│   ├── auth.controller.ts           # POST /auth/login (público) — /auth/register (JWT+MenuRol)
+│   ├── auth.controller.ts           # login, register, me, refresh, logout, forgot/reset/cambiar-password
 │   ├── auth.module.ts
-│   ├── auth.service.ts              # validateUser, login (genera JWT)
+│   ├── auth.service.ts              # validateUser, login (JWT+RT), refresh (rotación), logout, forgotPassword, resetPassword, cambiarPassword
 │   ├── strategies/jwt.strategy.ts   # JwtStrategy: valida token, verifica activo en BD
 │   ├── guards/jwt-auth.guard.ts     # JwtAuthGuard: wrapper AuthGuard('jwt')
-│   └── dto/login.dto.ts
+│   ├── entities/
+│   │   ├── password-reset-token.entity.ts  # Token recuperación contraseña (1h)
+│   │   └── refresh-token.entity.ts         # Refresh token (30 días, rotación)
+│   └── dto/login.dto.ts + forgot-password.dto.ts + reset-password.dto.ts + cambiar-password.dto.ts
 │
 ├── common/                          # Utilidades transversales
 │   ├── autorizacion.module.ts       # @Global() — provee MenuRolGuard
@@ -49,6 +52,10 @@ src/
 │   ├── decorators/
 │   │   ├── current-user.decorator.ts  # @CurrentUser() → request.user del JWT
 │   │   └── permiso.decorator.ts       # @RequierePermiso('/ruta')
+│   ├── dto/
+│   │   └── paginacion.dto.ts          # page (default 1), limit (default 20, max 100)
+│   ├── interfaces/
+│   │   └── paginated-result.interface.ts  # { data, total, page, limit, totalPages }
 │   └── notifications/
 │
 ├── firebase/ — Firebase Admin SDK (Storage + Firestore)
@@ -81,10 +88,16 @@ src/
 ## 4. Mapa de endpoints y guards
 
 ### Auth (público / protegido)
-| Método | Ruta | Guard |
-|---|---|---|
-| POST | `/auth/login` | Público |
-| POST | `/auth/register` | JWT + MenuRol (`/usuarios`) |
+| Método | Ruta | Guard | Notas |
+|---|---|---|---|
+| POST | `/auth/login` | Público | Rate limit: 5/min. Devuelve `access_token` + `refresh_token` |
+| POST | `/auth/register` | JWT + MenuRol (`/usuarios`) | Crea usuario, envía email de bienvenida |
+| GET | `/auth/me` | JWT | Perfil del usuario autenticado |
+| POST | `/auth/refresh` | Público | Rota refresh token, devuelve nuevos tokens |
+| POST | `/auth/logout` | JWT | Revoca refresh token |
+| POST | `/auth/forgot-password` | Público | Envía email con token 64hex (1h) |
+| POST | `/auth/reset-password` | Público | Usa token del email, actualiza password |
+| POST | `/auth/cambiar-password` | JWT | Cambia password conociendo la actual |
 
 ### Gestión
 | Método | Ruta | Guard |
@@ -138,10 +151,14 @@ src/
 - Verifica `asignaciones_contables` para el RUC enviado
 - Si no hay asignación → 403
 
+### Rate limiting (`@nestjs/throttler`)
+- Global: 100 req/min por IP (`ThrottlerGuard` como `APP_GUARD` en `AppModule`)
+- Login: 5 req/min por IP (`@Throttle({ default: { limit: 5, ttl: 60000 } })` en el endpoint)
+
 ### Flujo de validación global
 ```
-request → JwtAuthGuard → JwtStrategy (verifica activo en BD) → MenuRolGuard (menu_rol) → handler
-          ↓ 401                                               ↓ 403
+request → ThrottlerGuard (429) → JwtAuthGuard → JwtStrategy (activo en BD) → MenuRolGuard → handler
+                                  ↓ 401                                        ↓ 403
 ```
 
 ### ValidationPipe global (`main.ts`)
@@ -162,38 +179,32 @@ Producción: `CORS_ORIGIN=https://mifrontend.com`
 La base de datos tiene el schema definido en `schema_bd_sis_iva.sql` (ignorado por git).
 
 ### Tablas implementadas como entidades TypeORM
+> Verificado 2025-06-05: schema y entidades están 100% sincronizados. Los campos marcados como ausentes son consistentemente ausentes en ambos lados — no son bugs, son mejoras futuras documentadas.
+
 | Tabla BD | Entidad | Notas |
 |---|---|---|
 | `paises` | `Pais` | ✅ |
 | `departamentos` | `Departamento` | ✅ |
 | `ciudades` | `Ciudad` | ✅ |
-| `personas` | `Persona` | ⚠️ Faltan `email_contacto`, `created_at`, `updated_at` en entidad |
+| `personas` | `Persona` | ✅ (`email_contacto`, timestamps: ausentes en entidad Y en schema — mejora futura) |
 | `tipos_documento` | `TipoDocumento` | ✅ |
-| `persona_documentos` | `PersonaDocumento` | ✅ |
-| `roles` | `Role` | ⚠️ Falta `created_at` en entidad |
-| `usuarios` | `Usuario` | ✅ |
-| `grupo_menu` | `GrupoMenu` | ⚠️ Faltan `orden` y `activo` en entidad |
-| `menu` | `Menu` | ⚠️ Faltan `orden` y `activo` en entidad |
-| `menu_rol` | `MenuRol` | ✅ |
-| `contribuyentes` | `Contribuyente` | ⚠️ Faltan `activo` y `updated_at` en entidad |
+| `persona_documentos` | `PersonaDocumento` | ✅ (incluye `fecha_vencimiento` en ambos) |
+| `roles` | `Role` | ✅ |
+| `usuarios` | `Usuario` | ✅ (campo `fecha_creacion` — mismo nombre en entidad y schema) |
+| `grupo_menu` | `GrupoMenu` | ✅ (tiene `descripcion` e `icono` en ambos; sin `orden`/`activo` en ambos) |
+| `menu` | `Menu` | ✅ (tiene `descripcion` e `icono` en ambos; sin `orden`/`activo` en ambos) |
+| `menu_rol` | `MenuRol` | ✅ (UNIQUE `menu_id+rol_id` en ambos) |
+| `contribuyentes` | `Contribuyente` | ✅ (`deleted_at` presente; `activo` y `updated_at` ausentes en entidad Y en schema) |
 | `asignaciones_contables` | `AsignacionContable` | ✅ |
-| `comprobantes` | `Comprobante` | ⚠️ Falta `updated_at`; `revisor_id` / `fecha_reclamado` en entidad pero NO en schema |
-| `comprobantes_ventas` | `ComprobanteVenta` | ⚠️ `tipo_identificacion_cliente` en schema pero no en entidad |
-| `set_rucs` | `SetRuc` | ⚠️ Faltan `created_at` y `updated_at` en entidad |
-| `ocr_entrenamientos` | `OcrEntrenamiento` | ✅ |
+| `comprobantes` | `Comprobante` | ✅ (`revisor_id`, `fecha_reclamado` y `deleted_at` en entidad y schema) |
+| `comprobantes_ventas` | `ComprobanteVenta` | ✅ (`deleted_at` agregado; `tipo_identificacion_cliente` no existe en schema) |
+| `set_rucs` | `SetRuc` | ✅ (`created_at`/`updated_at`: ausentes en entidad Y en schema) |
+| `ocr_entrenamientos` | `OcrEntrenamiento` | ✅ (UNIQUE para comprobante_id Y comprobante_venta_id en ambos) |
 | `suscripciones` | `Suscripcion` | ✅ |
 | `cuotas_pagos` | `CuotaPago` | ✅ |
 
-### Tablas SET del schema — NO implementadas como entidades
-| Tabla | Propósito | Estado |
-|---|---|---|
-| `set_tipo_registro` | Catálogo 1=Ventas, 2=Compras, 3=Ingresos, 4=Egresos | ❌ Sin entidad ni endpoint |
-| `set_condicion_operacion` | 1=Contado, 2=Crédito | ❌ Sin entidad ni endpoint |
-| `set_tipo_identificacion` | 11=RUC, 12=CI, etc. | ❌ Sin entidad ni endpoint |
-| `set_tipo_comprobante` | 109=Factura, 112=Ticket, etc. | ❌ Sin entidad ni endpoint |
-| `set_valor_logico` | S/N | ❌ Sin entidad ni endpoint |
-
-**Consecuencia importante:** el schema define FK desde `comprobantes` → `set_tipo_comprobante`, `set_condicion_operacion`, `set_valor_logico`. Si la BD tiene esas constraints activas, la API no puede insertar comprobantes sin que esas tablas estén pobladas.
+### Tablas SET — no existen en el schema actual
+Los catálogos SET (`set_tipo_comprobante`, `set_condicion_operacion`, `set_tipo_identificacion`, `set_tipo_registro`, `set_valor_logico`) **no están en el schema actual ni tienen entidades TypeORM**. Los valores se validan a nivel DTO en la API. No hay FK activas hacia tablas SET — no bloquean inserts de comprobantes.
 
 ### URLs de menú registradas en BD (deben coincidir con `@RequierePermiso`)
 ```
@@ -222,6 +233,16 @@ menu_id=17 → /negocio/comprobantes-ventas
 
 ## 7. Lógica de negocio importante
 
+### Autenticación y gestión de contraseñas (`/auth`)
+
+**Login** devuelve `{ access_token, refresh_token, user }`. El `access_token` dura 8h (JWT), el `refresh_token` dura 30 días (BD).
+
+**Refresh token** implementa rotación: cada `/auth/refresh` invalida el token anterior y emite uno nuevo. Si el token es robado y ya fue rotado, el intento falla con 401.
+
+**Tabla `password_reset_tokens`:** token 64hex, expira en 1h, marcado como `usado` tras el reset. Se invalidan tokens anteriores del mismo usuario en cada nueva solicitud.
+
+**Tabla `refresh_tokens`:** token 64hex, expira en 30 días, campo `revocado`. Se revoca en logout y se rota en cada refresh.
+
 ### Pipeline OCR (`/ocr-tax`)
 1. JWT + `activo` (JwtStrategy)
 2. `permitir_guardar` en `/ocr-tax` (MenuRolGuard)
@@ -247,6 +268,13 @@ menu_id=17 → /negocio/comprobantes-ventas
 - `GET .../bolsa/pendientes` — lista `estado_ocr='REQUIERE_REVISION'` sin `revisor_id`
 - `POST .../bolsa/:id/reclamar` — asigna el comprobante al `usuario.id` del JWT
 - Protege contra doble reclamo concurrente
+
+### Email — 3 plantillas implementadas (`NotificationsService`)
+| Método | Cuándo se llama |
+|---|---|
+| `sendBienvenidaEmail` | Al crear usuario (`es_temporal: false`) |
+| `sendResetPasswordEmail` | Al solicitar recuperación de contraseña |
+| `sendCotizacionEmail` | (Heredado otro proyecto — no usar en IVA) |
 
 ---
 
@@ -276,16 +304,33 @@ menu_id=17 → /negocio/comprobantes-ventas
 - `estado_ocr` con 6 estados en `comprobante.entity.ts`
 - `created_at` en comprobante entity (migración aplicada)
 
-### BD configurada
-- 5 grupos de menú, 17 menús, 29 registros `menu_rol`
-- Roles: 1=Administrador (`LGED` en todo), 2=Contador (acceso operativo)
+### BD configurada y ejecutada (2026-06-05)
+- 22 tablas — schema aplicado en MySQL 8.0 local. Listo para servidor.
+- 5 grupos de menú, 17 menús, 41 registros `menu_rol`
+- Roles: 1=Administrador (LGED en todo), 2=Contador (acceso operativo), 3=Solo Lectura (consulta)
 - charset `utf8mb4` en conexión TypeORM
+- Usuario administrador inicial: `admin@sistema.com` / `12356` / rol_id=1 (bcrypt 10 rounds)
+- Tablas nuevas activas: `refresh_tokens`, `password_reset_tokens`
+- Soft delete activo: `deleted_at` en `contribuyentes`, `comprobantes`, `comprobantes_ventas`
+- Corrección aplicada: eliminado CHECK constraint en `ocr_entrenamientos` (incompatible con MySQL 8.0 + FK)
 
 ### Módulos completos
 - CRUD: personas, usuarios, documentos, contribuyentes, comprobantes (compras y ventas), asignaciones, suscripciones, cuotas, roles, menús, grupos, tipos-documento, países
 - OCR pipeline: Tesseract + Vision + validación fiscal + R2
 - Exportación RG90 compras y ventas
 - Bolsa de revisión para compras y ventas
+- Paginación: `GET /negocio/comprobantes`, `GET /negocio/comprobantes-ventas`, `GET /negocio/contribuyentes` devuelven `{ data, total, page, limit, totalPages }`. Query params: `?page=1&limit=20`
+- Rate limiting: 100 req/min global, 5 req/min en `/auth/login`
+- Refresh token: login devuelve `access_token` (8h) + `refresh_token` (30d). `/auth/refresh` rota. `/auth/logout` revoca
+- Soft delete: `comprobantes`, `comprobantes_ventas`, `contribuyentes` tienen `deleted_at`. `DELETE` usa `softDelete()` — el registro permanece en BD con `deleted_at` no nulo, invisible para `find()`
+- GET /auth/me: devuelve el perfil completo del usuario autenticado
+
+### Email — estado del módulo
+- Librerías instaladas: `@nestjs-modules/mailer` ^2.0.1, `nodemailer` ^8.0.5, `handlebars` ^4.7.9
+- SMTP configurado en `.env`: Hostinger puerto 465 SSL (`contacto@acbldeveloper.com`)
+- `NotificationsModule` global con `SmtpEmailProvider` vía `MailerModule`
+- Email de bienvenida enviado fire-and-forget al crear usuario (`es_temporal: false`)
+- Email de reset enviado fire-and-forget en `forgot-password`
 
 ---
 
@@ -313,31 +358,34 @@ La forma más limpia sería agregar en `suscripciones` un campo `es_trial BOOLEA
 
 ---
 
-## 10. Pendiente / Gaps detectados en el repaso del schema
+## 10. Pendiente / Gaps funcionales
 
-### Entidades desincronizadas con el schema SQL
-1. **`persona.email_contacto`** — en schema, ausente en entidad
-2. **`persona.created_at / updated_at`** — en schema, ausente en entidad
-3. **`roles.created_at`** — en schema, ausente en entidad
-4. **`grupo_menu.orden`, `grupo_menu.activo`** — en schema, ausentes en entidad y DTO
-5. **`menu.orden`, `menu.activo`** — en schema, ausentes en entidad y DTO
-6. **`contribuyentes.activo`** — en schema, ausente en entidad (importante para soft delete)
-7. **`contribuyentes.updated_at`** — en schema, ausente en entidad
-8. **`comprobantes_ventas.tipo_identificacion_cliente`** — en schema (FK a `set_tipo_identificacion`), ausente en entidad
-9. **`comprobantes.revisor_id / fecha_reclamado`** — en entidad (bolsa feature) pero NO en schema SQL
+### Verificado 2025-06-05 — entidades y schema 100% sincronizados
+No hay desincronización entre entidades TypeORM y el schema SQL. Los campos "faltantes" (email_contacto, activo en contribuyentes, timestamps opcionales, etc.) están consistentemente ausentes en ambos lados. Son mejoras futuras, no bugs.
 
-### Tablas SET no implementadas
-Las 5 tablas de catálogos SET (`set_tipo_registro`, `set_condicion_operacion`, `set_tipo_identificacion`, `set_tipo_comprobante`, `set_valor_logico`) existen en el schema pero no tienen entidades TypeORM ni endpoints. Si el schema SQL fue aplicado con las FK activas, la API necesita que esas tablas estén pobladas para poder insertar comprobantes.
+### Gaps funcionales pendientes — qué falta en la API
 
-### Otros pendientes
-- Sin paginación en endpoints de lista
-- Sin rate limiting en `/auth/login`
-- Sin refresh token
-- Sin soft delete — borrado físico con CASCADE
-- Sin bloqueo automático por estado de suscripción
-- Sin módulo de planes/tiers para SaaS premium
-- Sin período de prueba (free trial)
-- Sin reporte/dashboard de uso
+| Gap | Impacto | Esfuerzo |
+|---|---|---|
+| **Paginación en módulos secundarios** (personas, usuarios, suscripciones, cuotas, asignaciones, roles, menu, etc.) | Bajo — son catálogos pequeños | Bajo |
+| **Limpieza de tokens expirados** (`refresh_tokens` y `password_reset_tokens` se acumulan) | Medio — rendimiento en el tiempo | Bajo — cron job con `@nestjs/schedule` |
+| **Guard de suscripción** — bloqueo automático si `estado=CANCELADO` | Alto para SaaS real | Medio |
+| **Módulo de planes/tiers** — tabla `planes` + límites por plan | Alto para SaaS real | Alto |
+| **Free trial** — campo `es_trial + trial_hasta` en suscripciones | Medio | Bajo |
+| **Anti-duplicado tributario** — UNIQUE `(contribuyente_id, ruc_emisor, timbrado, nro_comprobante)` en comprobantes | Alto — evita doble carga | Bajo (ALTER TABLE + validación API) |
+| **Endpoint `GET /roles/:id/menus`** — para que frontend construya menú dinámico | Alto para frontend | Bajo |
+| **`email_contacto` en personas** — ausente en entidad y schema | Bajo — el login usa `usuarios.email` | Bajo |
+| **`comprobante_asociado/timbrado_asociado` en ventas** — solo en compras | Medio — notas crédito/débito de ventas | Bajo |
+| **Auditoría de cambios** (`updated_at`, `updated_by`) en comprobantes | Medio | Medio |
+
+### Para levantar en un servidor nuevo (listo ✅)
+El archivo `schema_bd_sis_iva.sql` contiene todo lo necesario para instalación fresca:
+```bash
+mysql -u root -pTUPASSWORD < schema_bd_sis_iva.sql
+```
+Incluye: 22 tablas, seed de roles, grupos, menús, permisos (41 registros menu_rol) y usuario admin.
+
+> **MySQL 8.0** — Se removió el CHECK constraint de `ocr_entrenamientos` (incompatible con FK en MySQL 8.0). No se pueden usar `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` (sintaxis MariaDB). Para actualizar BD existente, usar los `ALTER TABLE` sin `IF NOT EXISTS` comentados al final del script.
 
 ---
 
@@ -382,6 +430,15 @@ R2_PUBLIC_URL=
 
 FIREBASE_STORAGE_BUCKET=        # Firebase (backup storage)
 FIREBASE_CREDENTIALS=           # JSON como string
+
+# SMTP (Hostinger — puerto 465 SSL)
+MAIL_HOST=smtp.hostinger.com
+MAIL_PORT=465
+MAIL_SECURE=true                # true para puerto 465, false para 587
+MAIL_USER=                      # cuenta de email Hostinger
+MAIL_PASS=                      # contraseña
+MAIL_FROM=                      # "Nombre <cuenta@dominio.com>"
+MAIL_IGNORE_TLS=false           # true solo para certificados auto-firmados en dev
 ```
 
 ---

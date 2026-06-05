@@ -6,6 +6,7 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -16,15 +17,19 @@ import { PersonasService } from '../personas/personas.service';
 import { Persona } from '../personas/entities/persona.entity';
 import { PersonaDocumento } from '../persona-documentos/entities/persona-documento.entity';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import { NotificationsService } from '../../common/notifications/notifications.service';
 
 @Injectable()
 export class UsuariosService {
+  private readonly logger = new Logger(UsuariosService.name);
+
   constructor(
     @InjectRepository(Usuario)
     private readonly usuarioRepository: Repository<Usuario>,
     @InjectRepository(PersonaDocumento)
     private readonly documentoRepository: Repository<PersonaDocumento>,
     private readonly personasService: PersonasService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
@@ -76,7 +81,19 @@ export class UsuariosService {
       es_temporal: es_temporal || false,
     });
 
-    return await this.usuarioRepository.save(nuevoUsuario);
+    const usuarioGuardado = await this.usuarioRepository.save(nuevoUsuario);
+
+    // Envío de bienvenida solo para usuarios no temporales (no auto-creados)
+    if (!es_temporal) {
+      const passwordPlano = password; // capturado antes del @BeforeInsert que hashea
+      this.notificationsService
+        .sendBienvenidaEmail(email, personaParaAsociar.nombre, passwordPlano)
+        .catch((err: Error) =>
+          this.logger.error(`Error enviando bienvenida a ${email}: ${err.message}`),
+        );
+    }
+
+    return usuarioGuardado;
   }
 
   async findAll(): Promise<Usuario[]> {
@@ -114,6 +131,10 @@ export class UsuariosService {
   }
 
   // Se mantiene con las relaciones necesarias para Auth y Cotizaciones
+  async updatePassword(id: number, hashedPassword: string): Promise<void> {
+    await this.usuarioRepository.update(id, { password: hashedPassword });
+  }
+
   async findByEmail(email: string): Promise<Usuario | undefined> {
     const user = await this.usuarioRepository.findOne({
       where: { email },

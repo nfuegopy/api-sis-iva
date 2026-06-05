@@ -18,6 +18,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
+import { PaginacionDto } from '../../common/dto/paginacion.dto';
 
 @Controller('negocio/comprobantes')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
@@ -25,10 +26,7 @@ import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 export class ComprobantesController {
   constructor(private readonly comprobantesService: ComprobantesService) {}
 
-  // =========================================================================
-  // BOLSA COMÚN (UBER) - Rutas estáticas siempre arriba de las rutas con :id
-  // =========================================================================
-
+  // Rutas estáticas siempre arriba de las rutas con :id
   @Get('bolsa/pendientes')
   obtenerBolsaComun() {
     return this.comprobantesService.listarBolsaPendientes();
@@ -45,19 +43,18 @@ export class ComprobantesController {
     );
   }
 
-  // =========================================================================
-  // CRUD ESTÁNDAR
-  // =========================================================================
-
   @Post()
   create(@Body() createComprobanteDto: CreateComprobanteDto) {
     return this.comprobantesService.create(createComprobanteDto);
   }
 
   @Get()
-  findAll(@Query('contribuyente_id') contribuyente_id?: string) {
+  findAll(
+    @Query() paginacion: PaginacionDto,
+    @Query('contribuyente_id') contribuyente_id?: string,
+  ) {
     const id = contribuyente_id ? parseInt(contribuyente_id, 10) : undefined;
-    return this.comprobantesService.findAll(id);
+    return this.comprobantesService.findAll(paginacion.page, paginacion.limit, id);
   }
 
   @Get(':id')

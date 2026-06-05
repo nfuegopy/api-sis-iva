@@ -8,6 +8,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ContribuyentesService } from './contribuyentes.service';
@@ -16,6 +17,7 @@ import { UpdateContribuyenteDto } from './dto/update-contribuyente.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
+import { PaginacionDto } from '../../common/dto/paginacion.dto';
 
 @Controller('negocio/contribuyentes')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
@@ -29,8 +31,8 @@ export class ContribuyentesController {
   }
 
   @Get()
-  findAll() {
-    return this.contribuyentesService.findAll();
+  findAll(@Query() paginacion: PaginacionDto) {
+    return this.contribuyentesService.findAll(paginacion.page, paginacion.limit);
   }
 
   @Get(':id')

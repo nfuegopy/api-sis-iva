@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { ComprobanteVenta } from './entities/comprobante-venta.entity';
 import { UpdateComprobanteVentaDto } from './dto/update-comprobante-venta.dto';
+import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 
 @Injectable()
 export class ComprobantesVentasService {
@@ -40,12 +41,19 @@ export class ComprobantesVentasService {
     return { mensaje: 'Comprobante de venta asignado a tu bandeja', venta };
   }
 
-  async findAll(contribuyente_id?: number): Promise<ComprobanteVenta[]> {
+  async findAll(
+    page = 1,
+    limit = 20,
+    contribuyente_id?: number,
+  ): Promise<PaginatedResult<ComprobanteVenta>> {
     const where = contribuyente_id ? { contribuyente_id } : {};
-    return await this.ventaRepository.find({
+    const [data, total] = await this.ventaRepository.findAndCount({
       where,
       order: { fecha_emision: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: number): Promise<ComprobanteVenta> {
@@ -63,8 +71,8 @@ export class ComprobantesVentasService {
   }
 
   async remove(id: number): Promise<{ message: string }> {
-    const venta = await this.findOne(id);
-    await this.ventaRepository.remove(venta);
+    await this.findOne(id);
+    await this.ventaRepository.softDelete(id);
     return { message: `Comprobante de venta con ID ${id} eliminado.` };
   }
 }

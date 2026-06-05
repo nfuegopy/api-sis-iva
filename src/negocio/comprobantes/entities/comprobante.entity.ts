@@ -3,6 +3,7 @@
 import {
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   PrimaryGeneratedColumn,
   ManyToOne,
@@ -141,4 +142,7 @@ export class Comprobante {
 
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;
+
+  @DeleteDateColumn({ type: 'timestamp', nullable: true, select: false })
+  deleted_at: Date;
 }
