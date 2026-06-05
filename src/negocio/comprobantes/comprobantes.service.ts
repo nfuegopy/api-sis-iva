@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
@@ -83,6 +84,19 @@ export class ComprobantesService {
   async create(
     createComprobanteDto: CreateComprobanteDto,
   ): Promise<Comprobante> {
+    const duplicado = await this.comprobanteRepository.findOne({
+      where: {
+        contribuyente_id: createComprobanteDto.contribuyente_id,
+        ruc_emisor: createComprobanteDto.ruc_emisor,
+        timbrado: createComprobanteDto.timbrado,
+        nro_comprobante: createComprobanteDto.nro_comprobante,
+      },
+    });
+    if (duplicado) {
+      throw new ConflictException(
+        `Comprobante duplicado: timbrado ${createComprobanteDto.timbrado} / nro ${createComprobanteDto.nro_comprobante} ya existe para este contribuyente y emisor.`,
+      );
+    }
     const nuevoComprobante =
       this.comprobanteRepository.create(createComprobanteDto);
     return await this.comprobanteRepository.save(nuevoComprobante);

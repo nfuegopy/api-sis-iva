@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -60,6 +61,9 @@ import { ExportacionesModule } from './negocio/exportaciones/exportaciones.modul
     // Rate limiting global: 100 req/min por IP
     // El endpoint /auth/login tiene límite propio de 5/min via @Throttle
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+
+    // Scheduler para limpieza de tokens expirados (cron diario 3AM)
+    ScheduleModule.forRoot(),
 
     AuthModule,
     AutorizacionModule,

@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import 'multer';
 
 import { ImageOptimizationService } from './services/image-optimization/image-optimization.service';
@@ -84,6 +84,7 @@ export class OcrTaxController {
     private readonly ocrEntrenamientoRepo: Repository<OcrEntrenamiento>,
     @InjectRepository(AsignacionContable)
     private readonly asignacionRepo: Repository<AsignacionContable>,
+    private readonly dataSource: DataSource,
   ) {}
 
   // =========================================================================
@@ -121,6 +122,17 @@ export class OcrTaxController {
     if (!tieneAsignacion) {
       throw new ForbiddenException(
         'No tenés asignación contable para operar este RUC.',
+      );
+    }
+
+    // --- Capa 3: verificar suscripción activa ---
+    const [suscCancelada] = await this.dataSource.query(
+      `SELECT id FROM suscripciones WHERE contribuyente_id = ? AND estado = 'CANCELADO' AND (es_trial = FALSE OR trial_hasta < CURDATE()) LIMIT 1`,
+      [cliente.id],
+    );
+    if (suscCancelada) {
+      throw new ForbiddenException(
+        'La suscripción del contribuyente está CANCELADA. Contacte al administrador.',
       );
     }
 
@@ -275,6 +287,17 @@ export class OcrTaxController {
     if (!tieneAsignacionVenta) {
       throw new ForbiddenException(
         'No tenés asignación contable para operar este RUC.',
+      );
+    }
+
+    // --- Capa 3: verificar suscripción activa ---
+    const [suscCanceladaVenta] = await this.dataSource.query(
+      `SELECT id FROM suscripciones WHERE contribuyente_id = ? AND estado = 'CANCELADO' AND (es_trial = FALSE OR trial_hasta < CURDATE()) LIMIT 1`,
+      [cliente.id],
+    );
+    if (suscCanceladaVenta) {
+      throw new ForbiddenException(
+        'La suscripción del contribuyente está CANCELADA. Contacte al administrador.',
       );
     }
 

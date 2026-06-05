@@ -11,6 +11,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { Usuario } from './entities/usuario.entity';
 import { PersonasService } from '../personas/personas.service';
@@ -96,8 +97,12 @@ export class UsuariosService {
     return usuarioGuardado;
   }
 
-  async findAll(): Promise<Usuario[]> {
-    return this.usuarioRepository.find();
+  async findAll(page = 1, limit = 20): Promise<PaginatedResult<Usuario>> {
+    const [data, total] = await this.usuarioRepository.findAndCount({
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: number): Promise<Usuario> {

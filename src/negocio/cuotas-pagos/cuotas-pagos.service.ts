@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { CreateCuotaPagoDto } from './dto/create-cuota-pago.dto';
 import { UpdateCuotaPagoDto } from './dto/update-cuota-pago.dto';
 import { CuotaPago } from './entities/cuota-pago.entity';
+import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 
 @Injectable()
 export class CuotasPagosService {
@@ -18,14 +19,20 @@ export class CuotasPagosService {
     return await this.cuotaPagoRepository.save(nuevaCuota);
   }
 
-  // Permite traer todas las cuotas o filtrar por el ID de una suscripción
-  async findAll(suscripcion_id?: number): Promise<CuotaPago[]> {
-    const whereCondition = suscripcion_id ? { suscripcion_id } : {};
-    return await this.cuotaPagoRepository.find({
-      where: whereCondition,
+  async findAll(
+    page = 1,
+    limit = 20,
+    suscripcion_id?: number,
+  ): Promise<PaginatedResult<CuotaPago>> {
+    const where = suscripcion_id ? { suscripcion_id } : {};
+    const [data, total] = await this.cuotaPagoRepository.findAndCount({
+      where,
       relations: ['suscripcion'],
-      order: { fecha_vencimiento: 'ASC' }, // Ordenadas por vencimiento
+      order: { fecha_vencimiento: 'ASC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: number): Promise<CuotaPago> {

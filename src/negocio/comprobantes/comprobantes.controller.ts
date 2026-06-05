@@ -17,6 +17,7 @@ import { UpdateComprobanteDto } from './dto/update-comprobante.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { SuscripcionGuard } from '../../common/guards/suscripcion.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 import { PaginacionDto } from '../../common/dto/paginacion.dto';
 
@@ -44,6 +45,7 @@ export class ComprobantesController {
   }
 
   @Post()
+  @UseGuards(SuscripcionGuard)
   create(@Body() createComprobanteDto: CreateComprobanteDto) {
     return this.comprobantesService.create(createComprobanteDto);
   }
