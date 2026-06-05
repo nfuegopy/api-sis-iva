@@ -117,8 +117,8 @@ src/
 | CRUD | `/negocio/asignaciones-contables` | JWT + MenuRol |
 | POST | `/ocr-tax/extraer/compra` | JWT + MenuRol + capa 2 (asignacion) + capa 3 (suscripcion) |
 | POST | `/ocr-tax/extraer/venta` | JWT + MenuRol + capa 2 (asignacion) + capa 3 (suscripcion) |
-| GET | `/negocio/exportaciones/rg90/compras` | JWT + MenuRol |
-| GET | `/negocio/exportaciones/rg90/ventas` | JWT + MenuRol |
+| GET | `/negocio/exportaciones/rg90/compras` | JWT + MenuRol + SuscripcionGuard |
+| GET | `/negocio/exportaciones/rg90/ventas` | JWT + MenuRol + SuscripcionGuard |
 
 ### Cobranzas SaaS
 | Método | Ruta | Guard |
@@ -152,7 +152,7 @@ src/
 **SuscripcionGuard** (`src/common/guards/suscripcion.guard.ts`)
 - Lee `contribuyente_id` del body o query
 - Bloquea (403) si suscripcion está CANCELADA Y no tiene trial vigente (`es_trial=true AND trial_hasta >= hoy`)
-- Aplicado en `POST /negocio/comprobantes` y `POST /negocio/comprobantes-ventas`
+- Aplicado en: `POST /negocio/comprobantes`, `POST /negocio/comprobantes-ventas`, `GET /negocio/exportaciones/rg90/compras`, `GET /negocio/exportaciones/rg90/ventas`
 
 **Capa 2 — OCR: asignación contable** (`ocr-tax.controller.ts`)
 - Verifica `asignaciones_contables` para el RUC enviado
@@ -277,9 +277,10 @@ menu_id=17 → /negocio/comprobantes-ventas
 - Descarga como `.csv`
 
 ### Bolsa de revisión (compras y ventas)
-- `GET .../bolsa/pendientes` — lista `estado_ocr='REQUIERE_REVISION'` sin `revisor_id`
+- `GET .../bolsa/pendientes` — lista `estado_ocr='REQUIERE_REVISION'` sin `revisor_id` — responde `PaginatedResult` con `?page=&limit=`
 - `POST .../bolsa/:id/reclamar` — asigna el comprobante al `usuario.id` del JWT
 - Protege contra doble reclamo concurrente
+- Al hacer `PATCH` con `estado_ocr: 'VERIFICADO_HUMANO'` → actualiza `ocr_entrenamientos` con `json_humano` y marca `LISTO_PARA_ENTRENAR` (en compras y ventas)
 
 ### Email — 3 plantillas implementadas (`NotificationsService`)
 | Método | Cuándo se llama |
@@ -296,7 +297,7 @@ menu_id=17 → /negocio/comprobantes-ventas
 - `JwtStrategy` verifica firma, BD y `activo`
 - `JwtAuthGuard` en todos los endpoints
 - `MenuRolGuard` en datos de negocio
-- `SuscripcionGuard` en POST comprobantes/comprobantes-ventas — bloquea si suscripcion CANCELADA sin trial
+- `SuscripcionGuard` en POST comprobantes/comprobantes-ventas y GET exportaciones — bloquea si suscripcion CANCELADA sin trial
 - `@RequierePermiso` declarado en cada controller
 - `POST /auth/register` protegido con JWT + permiso guardar `/usuarios`
 - Capa 2 OCR: `asignaciones_contables` validada en ambos endpoints
@@ -318,29 +319,31 @@ menu_id=17 → /negocio/comprobantes-ventas
 - `estado_ocr` con 6 estados en `comprobante.entity.ts`
 - `created_at` en comprobante entity (migración aplicada)
 
-### BD configurada y ejecutada (2026-06-05)
+### BD configurada y ejecutada (2026-06-05) — estado final ✅
 - 22 tablas — schema aplicado en MySQL 8.0 local. Listo para servidor.
 - 5 grupos de menú, 17 menús, 41 registros `menu_rol`
 - Roles: 1=Administrador (LGED en todo), 2=Contador (acceso operativo), 3=Solo Lectura (consulta)
 - charset `utf8mb4` en conexión TypeORM
 - Usuario administrador inicial: `admin@sistema.com` / `12356` / rol_id=1 (bcrypt 10 rounds)
-- Tablas nuevas activas: `refresh_tokens`, `password_reset_tokens`
+- Tablas activas: `refresh_tokens`, `password_reset_tokens`
 - Soft delete activo: `deleted_at` en `contribuyentes`, `comprobantes`, `comprobantes_ventas`
 - Corrección aplicada: eliminado CHECK constraint en `ocr_entrenamientos` (incompatible con MySQL 8.0 + FK)
 
-### Módulos completos
+### Módulos completos — estado final ✅
 - CRUD: personas, usuarios, documentos, contribuyentes, comprobantes (compras y ventas), asignaciones, suscripciones, cuotas, roles, menús, grupos, tipos-documento, países
-- OCR pipeline: Tesseract + Vision + validación fiscal + R2
-- Exportación RG90 compras y ventas
-- Bolsa de revisión para compras y ventas
-- **Paginación completa** (2026-06-05): todos los `GET` de listado devuelven `{ data, total, page, limit, totalPages }`. Query params `?page=1&limit=20`. Aplica en: comprobantes, comprobantes-ventas, contribuyentes, personas, usuarios, suscripciones, cuotas-pagos, asignaciones-contables
+- OCR pipeline: Tesseract + Vision + validación fiscal + R2. Compra y venta en paridad de campos fiscales (gravada_5, exenta, iva_10, iva_5, imputa_*)
+- Exportación RG90 compras y ventas + SuscripcionGuard en ambos endpoints
+- **Bolsa de revisión** para compras y ventas — paginada (`PaginatedResult`). `update()` ventas sincroniza `OcrEntrenamiento` al verificar (`VERIFICADO_HUMANO`)
+- **Paginación completa**: todos los `GET` de listado devuelven `{ data, total, page, limit, totalPages }`. `?page=1&limit=20`. Aplica en todos los módulos de negocio
+- **Filtro `?estado_ocr=`** en `GET /negocio/comprobantes` y `GET /negocio/comprobantes-ventas`
+- `findOne` en comprobantes-ventas carga relación `contribuyente`
 - Rate limiting: 100 req/min global, 5 req/min en `/auth/login`
 - Refresh token: login devuelve `access_token` (8h) + `refresh_token` (30d). `/auth/refresh` rota. `/auth/logout` revoca
-- **TokenCleanupService** (2026-06-05): cron `@EVERY_DAY_AT_3AM` elimina `refresh_tokens` y `password_reset_tokens` expirados
-- Soft delete: `comprobantes`, `comprobantes_ventas`, `contribuyentes` tienen `deleted_at`. `DELETE` usa `softDelete()` — el registro permanece en BD con `deleted_at` no nulo, invisible para `find()`
-- GET /auth/me: devuelve el perfil completo del usuario autenticado
-- **SuscripcionGuard** (2026-06-05): bloquea POST de comprobantes si suscripcion CANCELADA sin trial vigente
-- **Free trial** (2026-06-05): campos `es_trial` y `trial_hasta` en `suscripciones` — permite operar sin suscripcion activa durante el período de prueba
+- **TokenCleanupService**: cron `@EVERY_DAY_AT_3AM` elimina tokens expirados
+- Soft delete: `comprobantes`, `comprobantes_ventas`, `contribuyentes` — `DELETE` usa `softDelete()`, invisible para `find()`
+- GET /auth/me: perfil completo del usuario autenticado
+- **SuscripcionGuard**: bloquea POST comprobantes/ventas y GET exportaciones si suscripcion CANCELADA sin trial vigente
+- **Free trial**: `es_trial` + `trial_hasta` en `suscripciones`
 
 ### Email — estado del módulo
 - Librerías instaladas: `@nestjs-modules/mailer` ^2.0.1, `nodemailer` ^8.0.5, `handlebars` ^4.7.9
@@ -369,7 +372,7 @@ menu_id=17 → /negocio/comprobantes-ventas
 | Límites por plan (máx. comprobantes por mes, usuarios, contribuyentes) | ❌ Sin lógica de cuotas de uso |
 | Estado de cuenta visible para el contribuyente | ❌ Sin endpoint de resumen |
 | Facturación automática (generar cuotas al renovar) | ❌ Manual |
-| Bloqueo automático en exportaciones | ❌ Guard aplicado solo en comprobantes, no en exportaciones |
+| Bloqueo automático en exportaciones | ✅ Implementado — SuscripcionGuard en ambos GET rg90 |
 
 ---
 
@@ -386,7 +389,6 @@ No hay desincronización entre entidades TypeORM y el schema SQL. Los campos "fa
 | **`email_contacto` en personas** — ausente en entidad y schema | Bajo — el login usa `usuarios.email` | Bajo |
 | **`comprobante_asociado/timbrado_asociado` en ventas** — solo en compras | Medio — notas crédito/débito de ventas | Bajo |
 | **Auditoría de cambios** (`updated_at`, `updated_by`) en comprobantes | Medio | Medio |
-| **Guard suscripción en exportaciones** — no bloquea exportar si CANCELADO | Bajo — dato ya existe | Bajo |
 
 ### Para levantar en un servidor nuevo (listo ✅)
 El archivo `schema_bd_sis_iva.sql` contiene todo lo necesario para instalación fresca:
@@ -472,3 +474,17 @@ Archivo: `API_ENDPOINTS.md` — documentación completa de todos los módulos co
 - Ejemplo de body completo (JSON)
 - Respuesta exitosa y códigos de error posibles
 - Ejemplos de query params para paginación y filtros
+
+### Guía técnica completa del sistema
+Archivo: `SISTEMA_IVA_GUIA.md` — documento de referencia para implementadores con:
+- Qué hace el sistema y modelo SaaS
+- Base de datos: las 22 tablas + datos insertados por el seed (grupos, menús, 41 permisos, roles, admin)
+- Sistema de seguridad en capas con diagramas y SQL de los guards
+- Flujo completo de usuarios, roles y permisos
+- Pipeline OCR paso a paso para compra y venta
+- Bolsa de revisión: flujo completo
+- Exportación RG90 y formato CSV Marangatu
+- Suscripciones y free trial
+- Implementación frontend web (interceptores, menú dinámico, manejo de errores)
+- Implementación app móvil (cámara, SecureStorage, flujo offline)
+- Guía de testing paso a paso con todos los flujos críticos
