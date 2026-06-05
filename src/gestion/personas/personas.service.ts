@@ -12,6 +12,7 @@ import { UpdatePersonaDto } from './dto/update-persona.dto';
 import { Persona } from './entities/persona.entity';
 import { PersonaDocumento } from '../persona-documentos/entities/persona-documento.entity';
 import { DataSource } from 'typeorm';
+import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 
 @Injectable()
 export class PersonasService {
@@ -63,8 +64,12 @@ export class PersonasService {
     }
   }
 
-  async findAll(): Promise<Persona[]> {
-    return await this.personaRepository.find();
+  async findAll(page = 1, limit = 20): Promise<PaginatedResult<Persona>> {
+    const [data, total] = await this.personaRepository.findAndCount({
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: number): Promise<Persona> {

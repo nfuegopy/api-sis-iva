@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { CreateSuscripcionDto } from './dto/create-suscripcion.dto';
 import { UpdateSuscripcionDto } from './dto/update-suscripcion.dto';
 import { Suscripcion } from './entities/suscripcion.entity';
+import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 
 @Injectable()
 export class SuscripcionesService {
@@ -21,13 +22,19 @@ export class SuscripcionesService {
     return await this.suscripcionRepository.save(nuevaSuscripcion);
   }
 
-  // Útil para buscar si un contribuyente específico tiene su suscripción al día
-  async findAll(contribuyente_id?: number): Promise<Suscripcion[]> {
-    const whereCondition = contribuyente_id ? { contribuyente_id } : {};
-    return await this.suscripcionRepository.find({
-      where: whereCondition,
+  async findAll(
+    page = 1,
+    limit = 20,
+    contribuyente_id?: number,
+  ): Promise<PaginatedResult<Suscripcion>> {
+    const where = contribuyente_id ? { contribuyente_id } : {};
+    const [data, total] = await this.suscripcionRepository.findAndCount({
+      where,
       relations: ['contribuyente', 'cuotas'],
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: number): Promise<Suscripcion> {
@@ -50,8 +57,9 @@ export class SuscripcionesService {
     return await this.suscripcionRepository.save(suscripcion);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number): Promise<{ message: string }> {
     const suscripcion = await this.findOne(id);
     await this.suscripcionRepository.remove(suscripcion);
+    return { message: `Suscripción con ID ${id} eliminada.` };
   }
 }

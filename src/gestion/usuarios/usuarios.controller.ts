@@ -9,6 +9,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
@@ -16,6 +17,7 @@ import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
+import { PaginacionDto } from '../../common/dto/paginacion.dto';
 
 @Controller('usuarios')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
@@ -29,8 +31,8 @@ export class UsuariosController {
   }
 
   @Get()
-  findAll() {
-    return this.usuariosService.findAll();
+  findAll(@Query() paginacion: PaginacionDto) {
+    return this.usuariosService.findAll(paginacion.page, paginacion.limit);
   }
 
   @Get(':id')

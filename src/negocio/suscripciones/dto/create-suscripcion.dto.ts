@@ -1,5 +1,6 @@
 /* eslint-disable prettier/prettier */
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -20,4 +21,12 @@ export class CreateSuscripcionDto {
   @IsDateString()
   @IsNotEmpty()
   fecha_inicio: string;
+
+  @IsBoolean()
+  @IsOptional()
+  es_trial?: boolean;
+
+  @IsDateString()
+  @IsOptional()
+  trial_hasta?: string;
 }

@@ -1,13 +1,21 @@
 /* eslint-disable prettier/prettier */
 import {
   IsDateString,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  IsUrl,
+  Length,
+  Matches,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
+
+const TIPOS_COMPROBANTE_SET = [101,102,103,104,105,106,107,108,109,110,111,112,201,202,203,204,205,206,207,208,209,210,211];
 
 export class CreateComprobanteVentaDto {
   @IsInt()
@@ -16,12 +24,15 @@ export class CreateComprobanteVentaDto {
 
   @IsString()
   @IsNotEmpty()
-  @MaxLength(15)
+  @Matches(/^\d{3}-\d{3}-\d{7}$/, {
+    message: 'nro_comprobante debe tener el formato ###-###-#######',
+  })
   nro_comprobante: string;
 
   @IsString()
   @IsNotEmpty()
-  @MaxLength(8)
+  @Length(8, 8, { message: 'El timbrado debe tener exactamente 8 dígitos' })
+  @Matches(/^\d{8}$/, { message: 'El timbrado debe contener solo dígitos' })
   timbrado: string;
 
   @IsDateString()
@@ -29,10 +40,12 @@ export class CreateComprobanteVentaDto {
   fecha_emision: string;
 
   @IsInt()
+  @IsIn(TIPOS_COMPROBANTE_SET, { message: 'tipo_comprobante_set no es un código SET válido' })
   @IsOptional()
   tipo_comprobante_set?: number;
 
   @IsInt()
+  @IsIn([1, 2], { message: 'condicion_operacion debe ser 1 (contado) o 2 (crédito)' })
   @IsOptional()
   condicion_operacion?: number;
 
@@ -47,59 +60,62 @@ export class CreateComprobanteVentaDto {
   razon_social_cliente: string;
 
   @IsNumber()
+  @Min(0)
   @IsOptional()
   gravada_10?: number;
 
   @IsNumber()
+  @Min(0)
   @IsOptional()
   gravada_5?: number;
 
   @IsNumber()
+  @Min(0)
   @IsOptional()
   exenta?: number;
 
   @IsNumber()
+  @Min(0)
   @IsOptional()
   iva_10?: number;
 
   @IsNumber()
+  @Min(0)
   @IsOptional()
   iva_5?: number;
 
   @IsNumber()
+  @Min(1, { message: 'El monto_total debe ser mayor a 0' })
   @IsNotEmpty()
   monto_total: number;
 
-  @IsString()
-  @MaxLength(1)
+  @IsIn(['S', 'N'], { message: 'moneda_extranjera debe ser S o N' })
   @IsOptional()
   moneda_extranjera?: string;
 
-  @IsString()
-  @MaxLength(1)
+  @IsIn(['S', 'N'], { message: 'imputa_iva debe ser S o N' })
   @IsOptional()
   imputa_iva?: string;
 
-  @IsString()
-  @MaxLength(1)
+  @IsIn(['S', 'N'], { message: 'imputa_ire debe ser S o N' })
   @IsOptional()
   imputa_ire?: string;
 
-  @IsString()
-  @MaxLength(1)
+  @IsIn(['S', 'N'], { message: 'imputa_irp debe ser S o N' })
   @IsOptional()
   imputa_irp?: string;
 
-  @IsString()
+  @IsUrl({}, { message: 'url_foto_webp debe ser una URL válida' })
   @IsOptional()
-  @MaxLength(255)
   url_foto_webp?: string;
 
-  @IsString()
+  @IsIn(['EN_COLA', 'PROCESANDO', 'AUTO_PROCESADO', 'REQUIERE_REVISION', 'VERIFICADO_HUMANO', 'ERROR_PROCESAMIENTO'])
   @IsOptional()
   estado_ocr?: string;
 
   @IsNumber()
+  @Min(0)
+  @Max(100)
   @IsOptional()
   confianza_ocr?: number;
 }

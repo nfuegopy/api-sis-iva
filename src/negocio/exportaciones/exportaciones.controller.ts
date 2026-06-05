@@ -15,6 +15,7 @@ import { Comprobante } from '../comprobantes/entities/comprobante.entity';
 import { ComprobanteVenta } from '../comprobantes-ventas/entities/comprobante-venta.entity';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { SuscripcionGuard } from '../../common/guards/suscripcion.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
 @Controller('negocio/exportaciones')
@@ -30,6 +31,7 @@ export class ExportacionesController {
   ) {}
 
   @Get('rg90/compras')
+  @UseGuards(SuscripcionGuard)
   async exportarCompras(
     @Query('contribuyente_id') contribuyenteId: string,
     @Query('anio') anio: string,
@@ -77,6 +79,7 @@ export class ExportacionesController {
   }
 
   @Get('rg90/ventas')
+  @UseGuards(SuscripcionGuard)
   async exportarVentas(
     @Query('contribuyente_id') contribuyenteId: string,
     @Query('anio') anio: string,

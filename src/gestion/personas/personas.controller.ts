@@ -9,6 +9,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { PersonasService } from './personas.service';
 import { CreatePersonaDto } from './dto/create-persona.dto';
@@ -16,6 +17,7 @@ import { UpdatePersonaDto } from './dto/update-persona.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
+import { PaginacionDto } from '../../common/dto/paginacion.dto';
 
 @Controller('personas')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
@@ -29,8 +31,8 @@ export class PersonasController {
   }
 
   @Get()
-  findAll() {
-    return this.personasService.findAll();
+  findAll(@Query() paginacion: PaginacionDto) {
+    return this.personasService.findAll(paginacion.page, paginacion.limit);
   }
 
   @Get(':id')

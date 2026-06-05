@@ -2,6 +2,7 @@
 
 import {
   Column,
+  DeleteDateColumn,
   Entity,
   PrimaryGeneratedColumn,
   OneToOne,
@@ -47,4 +48,7 @@ export class Contribuyente {
 
   @OneToMany(() => Suscripcion, (suscripcion) => suscripcion.contribuyente)
   suscripciones: Suscripcion[];
+
+  @DeleteDateColumn({ type: 'timestamp', nullable: true, select: false })
+  deleted_at: Date;
 }

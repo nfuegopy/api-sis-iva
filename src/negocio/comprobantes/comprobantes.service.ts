@@ -3,12 +3,14 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { FindOptionsWhere, Repository, IsNull } from 'typeorm';
 import { CreateComprobanteDto } from './dto/create-comprobante.dto';
 import { UpdateComprobanteDto } from './dto/update-comprobante.dto';
 import { Comprobante } from './entities/comprobante.entity';
+import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 
 // Importamos la entidad y el Enum de la IA
 import {
@@ -30,17 +32,21 @@ export class ComprobantesService {
   // LÓGICA DE BOLSA COMÚN (UBER)
   // =========================================================================
 
-  async listarBolsaPendientes(): Promise<Comprobante[]> {
-    return await this.comprobanteRepository.find({
+  async listarBolsaPendientes(
+    page = 1,
+    limit = 20,
+  ): Promise<PaginatedResult<Comprobante>> {
+    const [data, total] = await this.comprobanteRepository.findAndCount({
       where: {
         estado_ocr: 'REQUIERE_REVISION',
-        revisor_id: IsNull(), // Solo trae las que nadie ha reclamado aún
+        revisor_id: IsNull(),
       },
-      order: {
-        fecha_emision: 'ASC', // FIFO: Las más antiguas se revisan primero
-      },
-      relations: ['contribuyente'], // Para que el contador sepa a qué cliente pertenece
+      order: { fecha_emision: 'ASC' },
+      relations: ['contribuyente'],
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async reclamarParaRevision(idComprobante: number, contadorId: number) {
@@ -82,17 +88,40 @@ export class ComprobantesService {
   async create(
     createComprobanteDto: CreateComprobanteDto,
   ): Promise<Comprobante> {
+    const duplicado = await this.comprobanteRepository.findOne({
+      where: {
+        contribuyente_id: createComprobanteDto.contribuyente_id,
+        ruc_emisor: createComprobanteDto.ruc_emisor,
+        timbrado: createComprobanteDto.timbrado,
+        nro_comprobante: createComprobanteDto.nro_comprobante,
+      },
+    });
+    if (duplicado) {
+      throw new ConflictException(
+        `Comprobante duplicado: timbrado ${createComprobanteDto.timbrado} / nro ${createComprobanteDto.nro_comprobante} ya existe para este contribuyente y emisor.`,
+      );
+    }
     const nuevoComprobante =
       this.comprobanteRepository.create(createComprobanteDto);
     return await this.comprobanteRepository.save(nuevoComprobante);
   }
 
-  async findAll(contribuyente_id?: number): Promise<Comprobante[]> {
-    const whereCondition = contribuyente_id ? { contribuyente_id } : {};
-    return await this.comprobanteRepository.find({
-      where: whereCondition,
+  async findAll(
+    page = 1,
+    limit = 20,
+    contribuyente_id?: number,
+    estado_ocr?: string,
+  ): Promise<PaginatedResult<Comprobante>> {
+    const where: FindOptionsWhere<Comprobante> = {};
+    if (contribuyente_id) where.contribuyente_id = contribuyente_id;
+    if (estado_ocr) where.estado_ocr = estado_ocr;
+    const [data, total] = await this.comprobanteRepository.findAndCount({
+      where,
       order: { fecha_emision: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: number): Promise<Comprobante> {
@@ -130,8 +159,9 @@ export class ComprobantesService {
     return comprobanteActualizado;
   }
 
-  async remove(id: number): Promise<void> {
-    const comprobante = await this.findOne(id);
-    await this.comprobanteRepository.remove(comprobante);
+  async remove(id: number): Promise<{ message: string }> {
+    await this.findOne(id);
+    await this.comprobanteRepository.softDelete(id);
+    return { message: `Comprobante con ID ${id} eliminado.` };
   }
 }

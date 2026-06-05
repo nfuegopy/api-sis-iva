@@ -62,6 +62,9 @@ firebase-credentials.json
 # Postman collections (datos locales de prueba, no se suben)
 /collection
 /colection
+
+# Schema SQL (referencia local, no se sube al repo)
+schema_bd_sis_iva.sql
 .jsongraphify-out/
 .graphify/
 raw/

@@ -24,13 +24,12 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
           transport: {
             host: config.get<string>('MAIL_HOST'),
             port: config.get<number>('MAIL_PORT'),
-            secure: false, // IMPORTANTE: false para puerto 587 con STARTTLS
+            secure: config.get<string>('MAIL_SECURE') === 'true', // true para puerto 465 (SSL), false para 587 (STARTTLS)
             auth: {
               user: config.get<string>('MAIL_USER'),
               pass: config.get<string>('MAIL_PASS'),
             },
             tls: {
-              // ESTO ES LO QUE PERMITE CERTIFICADOS AUTO-FIRMADOS O INVÁLIDOS
               rejectUnauthorized: !ignoreTls,
             },
           },

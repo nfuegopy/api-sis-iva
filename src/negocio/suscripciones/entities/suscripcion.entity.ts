@@ -2,6 +2,7 @@
 
 import {
   Column,
+  CreateDateColumn,
   Entity,
   PrimaryGeneratedColumn,
   ManyToOne,
@@ -36,6 +37,15 @@ export class Suscripcion {
 
   @Column({ type: 'date' })
   fecha_inicio: string;
+
+  @Column({ type: 'boolean', default: false })
+  es_trial: boolean;
+
+  @Column({ type: 'date', nullable: true })
+  trial_hasta: string | null;
+
+  @CreateDateColumn({ type: 'timestamp' })
+  created_at: Date;
 
   @OneToMany(() => CuotaPago, (cuota) => cuota.suscripcion, { cascade: true })
   cuotas: CuotaPago[];

@@ -2,6 +2,8 @@
 
 import {
   Column,
+  CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   PrimaryGeneratedColumn,
   ManyToOne,
@@ -125,8 +127,8 @@ export class Comprobante {
 
   @Column({
     type: 'enum',
-    enum: ['AUTO_PROCESADO', 'REQUIERE_REVISION', 'VERIFICADO_HUMANO'],
-    default: 'REQUIERE_REVISION',
+    enum: ['EN_COLA', 'PROCESANDO', 'AUTO_PROCESADO', 'REQUIERE_REVISION', 'VERIFICADO_HUMANO', 'ERROR_PROCESAMIENTO'],
+    default: 'EN_COLA',
     nullable: true,
   })
   estado_ocr: string;
@@ -137,4 +139,10 @@ export class Comprobante {
     default: TipoGastoIRP.OTROS,
   })
   tipo_gasto: TipoGastoIRP;
+
+  @CreateDateColumn({ type: 'timestamp' })
+  created_at: Date;
+
+  @DeleteDateColumn({ type: 'timestamp', nullable: true, select: false })
+  deleted_at: Date;
 }

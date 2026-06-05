@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import 'multer';
 
 import { ImageOptimizationService } from './services/image-optimization/image-optimization.service';
@@ -40,6 +40,25 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
+const CINCO_MB = 5 * 1024 * 1024;
+const TIPOS_IMAGEN_PERMITIDOS = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+const MULTER_IMAGEN_OPTIONS = {
+  limits: { fileSize: CINCO_MB },
+  fileFilter: (_req: any, file: Express.Multer.File, callback: any) => {
+    if (TIPOS_IMAGEN_PERMITIDOS.includes(file.mimetype)) {
+      callback(null, true);
+    } else {
+      callback(
+        new BadRequestException(
+          `Tipo de archivo no permitido: ${file.mimetype}. Solo se aceptan JPG, PNG o WebP.`,
+        ),
+        false,
+      );
+    }
+  },
+};
+
 @Controller('ocr-tax')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
 @RequierePermiso('/ocr-tax')
@@ -65,13 +84,14 @@ export class OcrTaxController {
     private readonly ocrEntrenamientoRepo: Repository<OcrEntrenamiento>,
     @InjectRepository(AsignacionContable)
     private readonly asignacionRepo: Repository<AsignacionContable>,
+    private readonly dataSource: DataSource,
   ) {}
 
   // =========================================================================
   // ENDPOINT 1: EGRESOS / COMPRAS (Tickets de Supermercado, Facturas de Proveedores)
   // =========================================================================
   @Post('extraer/compra')
-  @UseInterceptors(FileInterceptor('imagen'))
+  @UseInterceptors(FileInterceptor('imagen', MULTER_IMAGEN_OPTIONS))
   async extraerCompra(
     @UploadedFile() file: Express.Multer.File,
     @Body('ruc') rucContribuyenteBody: string,
@@ -79,6 +99,8 @@ export class OcrTaxController {
   ) {
     if (!file)
       throw new BadRequestException('Debe subir una imagen del comprobante.');
+    if (file.size === 0)
+      throw new BadRequestException('El archivo subido está vacío.');
     if (!rucContribuyenteBody)
       throw new BadRequestException('El RUC del cliente es obligatorio.');
 
@@ -100,6 +122,17 @@ export class OcrTaxController {
     if (!tieneAsignacion) {
       throw new ForbiddenException(
         'No tenés asignación contable para operar este RUC.',
+      );
+    }
+
+    // --- Capa 3: verificar suscripción activa ---
+    const [suscCancelada] = await this.dataSource.query(
+      `SELECT id FROM suscripciones WHERE contribuyente_id = ? AND estado = 'CANCELADO' AND (es_trial = FALSE OR trial_hasta < CURDATE()) LIMIT 1`,
+      [cliente.id],
+    );
+    if (suscCancelada) {
+      throw new ForbiddenException(
+        'La suscripción del contribuyente está CANCELADA. Contacte al administrador.',
       );
     }
 
@@ -224,13 +257,15 @@ export class OcrTaxController {
   // ENDPOINT 2: INGRESOS / VENTAS (Facturas emitidas por el contribuyente)
   // =========================================================================
   @Post('extraer/venta')
-  @UseInterceptors(FileInterceptor('imagen'))
+  @UseInterceptors(FileInterceptor('imagen', MULTER_IMAGEN_OPTIONS))
   async extraerVenta(
     @UploadedFile() file: Express.Multer.File,
     @Body('ruc') rucContribuyenteBody: string,
     @CurrentUser() usuarioLogueado: any,
   ) {
     if (!file) throw new BadRequestException('Debe subir una imagen.');
+    if (file.size === 0)
+      throw new BadRequestException('El archivo subido está vacío.');
     if (!rucContribuyenteBody)
       throw new BadRequestException('El RUC del emisor es obligatorio.');
 
@@ -252,6 +287,17 @@ export class OcrTaxController {
     if (!tieneAsignacionVenta) {
       throw new ForbiddenException(
         'No tenés asignación contable para operar este RUC.',
+      );
+    }
+
+    // --- Capa 3: verificar suscripción activa ---
+    const [suscCanceladaVenta] = await this.dataSource.query(
+      `SELECT id FROM suscripciones WHERE contribuyente_id = ? AND estado = 'CANCELADO' AND (es_trial = FALSE OR trial_hasta < CURDATE()) LIMIT 1`,
+      [cliente.id],
+    );
+    if (suscCanceladaVenta) {
+      throw new ForbiddenException(
+        'La suscripción del contribuyente está CANCELADA. Contacte al administrador.',
       );
     }
 
@@ -279,6 +325,14 @@ export class OcrTaxController {
       );
     }
 
+    // Validación matemática fiscal (igual que extraerCompra)
+    const invoiceResult = this.validatorService.validate(datosExtraidos);
+    if (!invoiceResult.validation.isValidInvoiceCandidate) {
+      throw new BadRequestException(
+        'La imagen subida no parece ser un comprobante válido.',
+      );
+    }
+
     let razonSocialCliente = 'A CONFIRMAR';
     if (datosExtraidos.ruc) {
       const [soloRucOcr] = datosExtraidos.ruc.split('-');
@@ -288,8 +342,17 @@ export class OcrTaxController {
       if (datosSet) razonSocialCliente = datosSet.razon_social;
     }
 
+    const estadoRevisionVenta =
+      invoiceResult.validation.isTaxMathValid &&
+      invoiceResult.validation.isTimbradoValid &&
+      ocrResult.confidence > 70
+        ? 'AUTO_PROCESADO'
+        : 'REQUIERE_REVISION';
+
     const total = OcrNormalizerHelper.cleanAmount(datosExtraidos.total);
     const gravada10 = OcrNormalizerHelper.cleanAmount(datosExtraidos.gravada10);
+    const gravada5 = OcrNormalizerHelper.cleanAmount(datosExtraidos.gravada5);
+    const exenta = OcrNormalizerHelper.cleanAmount(datosExtraidos.exenta);
     const fechaConvertida = OcrNormalizerHelper.parseDate(
       datosExtraidos.fechaEmision,
     );
@@ -306,9 +369,17 @@ export class OcrTaxController {
       fecha_emision: fechaParaGuardar,
       monto_total: total,
       gravada_10: gravada10,
+      gravada_5: gravada5,
+      exenta: exenta,
+      iva_10: invoiceResult.calculosGenerados.iva10,
+      iva_5: invoiceResult.calculosGenerados.iva5,
+      imputa_iva: 'S',
+      imputa_ire: 'N',
+      imputa_irp: 'S',
+      moneda_extranjera: 'N',
       url_foto_webp: urlCloudflare,
       confianza_ocr: Math.round(ocrResult.confidence),
-      estado_ocr: 'REQUIERE_REVISION',
+      estado_ocr: estadoRevisionVenta,
       tipo_comprobante_set: datosExtraidos.tipoComprobanteSet || 109,
       condicion_operacion: datosExtraidos.condicionOperacion || 1,
     });

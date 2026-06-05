@@ -9,6 +9,7 @@ import { Repository, FindOptionsWhere } from 'typeorm';
 import { CreateAsignacionContableDto } from './dto/create-asignacion-contable.dto';
 import { UpdateAsignacionContableDto } from './dto/update-asignacion-contable.dto';
 import { AsignacionContable } from './entities/asignacion-contable.entity';
+import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 
 @Injectable()
 export class AsignacionesContablesService {
@@ -38,22 +39,23 @@ export class AsignacionesContablesService {
     return await this.asignacionRepository.save(nuevaAsignacion);
   }
 
-  // Permite filtrar por contador o por contribuyente
   async findAll(
+    page = 1,
+    limit = 20,
     usuario_id?: number,
     contribuyente_id?: number,
-  ): Promise<AsignacionContable[]> {
-    // Usamos el tipado correcto de TypeORM para evitar usar 'any'
-    const whereCondition: FindOptionsWhere<AsignacionContable> = {};
+  ): Promise<PaginatedResult<AsignacionContable>> {
+    const where: FindOptionsWhere<AsignacionContable> = {};
+    if (usuario_id) where.usuario_id = usuario_id;
+    if (contribuyente_id) where.contribuyente_id = contribuyente_id;
 
-    if (usuario_id) whereCondition.usuario_id = usuario_id;
-    if (contribuyente_id) whereCondition.contribuyente_id = contribuyente_id;
-
-    return await this.asignacionRepository.find({
-      where: whereCondition,
-      // Incluimos ambas relaciones para que al consultar devuelva todo el contexto
+    const [data, total] = await this.asignacionRepository.findAndCount({
+      where,
       relations: ['usuario', 'contribuyente'],
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: number): Promise<AsignacionContable> {
@@ -77,8 +79,9 @@ export class AsignacionesContablesService {
     return await this.asignacionRepository.save(asignacion);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number): Promise<{ message: string }> {
     const asignacion = await this.findOne(id);
     await this.asignacionRepository.remove(asignacion);
+    return { message: `Asignación con ID ${id} eliminada.` };
   }
 }
