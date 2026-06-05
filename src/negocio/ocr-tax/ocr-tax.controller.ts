@@ -40,6 +40,25 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 
+const CINCO_MB = 5 * 1024 * 1024;
+const TIPOS_IMAGEN_PERMITIDOS = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+const MULTER_IMAGEN_OPTIONS = {
+  limits: { fileSize: CINCO_MB },
+  fileFilter: (_req: any, file: Express.Multer.File, callback: any) => {
+    if (TIPOS_IMAGEN_PERMITIDOS.includes(file.mimetype)) {
+      callback(null, true);
+    } else {
+      callback(
+        new BadRequestException(
+          `Tipo de archivo no permitido: ${file.mimetype}. Solo se aceptan JPG, PNG o WebP.`,
+        ),
+        false,
+      );
+    }
+  },
+};
+
 @Controller('ocr-tax')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
 @RequierePermiso('/ocr-tax')
@@ -71,7 +90,7 @@ export class OcrTaxController {
   // ENDPOINT 1: EGRESOS / COMPRAS (Tickets de Supermercado, Facturas de Proveedores)
   // =========================================================================
   @Post('extraer/compra')
-  @UseInterceptors(FileInterceptor('imagen'))
+  @UseInterceptors(FileInterceptor('imagen', MULTER_IMAGEN_OPTIONS))
   async extraerCompra(
     @UploadedFile() file: Express.Multer.File,
     @Body('ruc') rucContribuyenteBody: string,
@@ -79,6 +98,8 @@ export class OcrTaxController {
   ) {
     if (!file)
       throw new BadRequestException('Debe subir una imagen del comprobante.');
+    if (file.size === 0)
+      throw new BadRequestException('El archivo subido está vacío.');
     if (!rucContribuyenteBody)
       throw new BadRequestException('El RUC del cliente es obligatorio.');
 
@@ -224,13 +245,15 @@ export class OcrTaxController {
   // ENDPOINT 2: INGRESOS / VENTAS (Facturas emitidas por el contribuyente)
   // =========================================================================
   @Post('extraer/venta')
-  @UseInterceptors(FileInterceptor('imagen'))
+  @UseInterceptors(FileInterceptor('imagen', MULTER_IMAGEN_OPTIONS))
   async extraerVenta(
     @UploadedFile() file: Express.Multer.File,
     @Body('ruc') rucContribuyenteBody: string,
     @CurrentUser() usuarioLogueado: any,
   ) {
     if (!file) throw new BadRequestException('Debe subir una imagen.');
+    if (file.size === 0)
+      throw new BadRequestException('El archivo subido está vacío.');
     if (!rucContribuyenteBody)
       throw new BadRequestException('El RUC del emisor es obligatorio.');
 
@@ -279,6 +302,14 @@ export class OcrTaxController {
       );
     }
 
+    // Validación matemática fiscal (igual que extraerCompra)
+    const invoiceResult = this.validatorService.validate(datosExtraidos);
+    if (!invoiceResult.validation.isValidInvoiceCandidate) {
+      throw new BadRequestException(
+        'La imagen subida no parece ser un comprobante válido.',
+      );
+    }
+
     let razonSocialCliente = 'A CONFIRMAR';
     if (datosExtraidos.ruc) {
       const [soloRucOcr] = datosExtraidos.ruc.split('-');
@@ -287,6 +318,13 @@ export class OcrTaxController {
       });
       if (datosSet) razonSocialCliente = datosSet.razon_social;
     }
+
+    const estadoRevisionVenta =
+      invoiceResult.validation.isTaxMathValid &&
+      invoiceResult.validation.isTimbradoValid &&
+      ocrResult.confidence > 70
+        ? 'AUTO_PROCESADO'
+        : 'REQUIERE_REVISION';
 
     const total = OcrNormalizerHelper.cleanAmount(datosExtraidos.total);
     const gravada10 = OcrNormalizerHelper.cleanAmount(datosExtraidos.gravada10);
@@ -308,7 +346,7 @@ export class OcrTaxController {
       gravada_10: gravada10,
       url_foto_webp: urlCloudflare,
       confianza_ocr: Math.round(ocrResult.confidence),
-      estado_ocr: 'REQUIERE_REVISION',
+      estado_ocr: estadoRevisionVenta,
       tipo_comprobante_set: datosExtraidos.tipoComprobanteSet || 109,
       condicion_operacion: datosExtraidos.condicionOperacion || 1,
     });

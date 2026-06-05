@@ -34,6 +34,7 @@ import { TiposDocumentoModule } from './referenciales/parametros/tipos-documento
 // ==========================================
 import { ContribuyentesModule } from './negocio/contribuyentes/contribuyentes.module';
 import { ComprobantesModule } from './negocio/comprobantes/comprobantes.module';
+import { ComprobantesVentasModule } from './negocio/comprobantes-ventas/comprobantes-ventas.module';
 import { AsignacionesContablesModule } from './negocio/asignaciones-contables/asignaciones-contables.module';
 import { SuscripcionesModule } from './negocio/suscripciones/suscripciones.module';
 import { CuotasPagosModule } from './negocio/cuotas-pagos/cuotas-pagos.module';
@@ -56,7 +57,7 @@ import { ExportacionesModule } from './negocio/exportaciones/exportaciones.modul
       database: process.env.DB_DATABASE,
       charset: 'utf8mb4',        // Soporta acentos, ñ y emojis
       autoLoadEntities: true,
-      synchronize: true, // ¡OJO! En producción poner en false
+      synchronize: false,        // Nunca true en producción — usar migraciones
     }),
 
     // Módulos de Infraestructura
@@ -85,6 +86,7 @@ import { ExportacionesModule } from './negocio/exportaciones/exportaciones.modul
     // Módulos de Negocio SaaS
     ContribuyentesModule,
     ComprobantesModule,
+    ComprobantesVentasModule,
     AsignacionesContablesModule,
     SuscripcionesModule,
     CuotasPagosModule,

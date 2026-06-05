@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { Usuario } from './entities/usuario.entity';
 import { PersonasService } from '../personas/personas.service';
@@ -95,6 +96,13 @@ export class UsuariosService {
     updateUsuarioDto: UpdateUsuarioDto,
   ): Promise<Usuario> {
     const usuario = await this.findOne(id);
+
+    // Si viene una nueva contraseña, hashearla antes de guardar.
+    // @BeforeInsert() de la entidad no corre en UPDATE, solo en INSERT.
+    if (updateUsuarioDto.password) {
+      updateUsuarioDto.password = await bcrypt.hash(updateUsuarioDto.password, 10);
+    }
+
     this.usuarioRepository.merge(usuario, updateUsuarioDto);
     return this.usuarioRepository.save(usuario);
   }

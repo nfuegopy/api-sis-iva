@@ -48,8 +48,9 @@ export class CuotasPagosService {
     return await this.cuotaPagoRepository.save(cuota);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number): Promise<{ message: string }> {
     const cuota = await this.findOne(id);
     await this.cuotaPagoRepository.remove(cuota);
+    return { message: `Cuota con ID ${id} eliminada.` };
   }
 }

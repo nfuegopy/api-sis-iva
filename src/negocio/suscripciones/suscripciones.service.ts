@@ -50,8 +50,9 @@ export class SuscripcionesService {
     return await this.suscripcionRepository.save(suscripcion);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number): Promise<{ message: string }> {
     const suscripcion = await this.findOne(id);
     await this.suscripcionRepository.remove(suscripcion);
+    return { message: `Suscripción con ID ${id} eliminada.` };
   }
 }

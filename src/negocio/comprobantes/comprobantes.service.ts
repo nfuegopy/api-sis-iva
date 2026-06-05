@@ -130,8 +130,9 @@ export class ComprobantesService {
     return comprobanteActualizado;
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number): Promise<{ message: string }> {
     const comprobante = await this.findOne(id);
     await this.comprobanteRepository.remove(comprobante);
+    return { message: `Comprobante con ID ${id} eliminado.` };
   }
 }

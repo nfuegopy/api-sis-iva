@@ -77,8 +77,9 @@ export class AsignacionesContablesService {
     return await this.asignacionRepository.save(asignacion);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number): Promise<{ message: string }> {
     const asignacion = await this.findOne(id);
     await this.asignacionRepository.remove(asignacion);
+    return { message: `Asignación con ID ${id} eliminada.` };
   }
 }

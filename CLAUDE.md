@@ -113,6 +113,16 @@ src/
 | POST/GET/PATCH/DELETE | `/negocio/comprobantes` | JWT + MenuRol | CRUD comprobantes de compra |
 | POST/GET/PATCH/DELETE | `/negocio/asignaciones-contables` | JWT + MenuRol | CRUD asignaciones usuario↔contribuyente |
 
+### Comprobantes de venta
+| Método | Ruta | Guard | Descripción |
+|---|---|---|---|
+| GET | `/negocio/comprobantes-ventas` | JWT + MenuRol | Lista ventas (filtro `?contribuyente_id=`) |
+| GET | `/negocio/comprobantes-ventas/bolsa/pendientes` | JWT + MenuRol | Ventas pendientes de revisión |
+| POST | `/negocio/comprobantes-ventas/bolsa/:id/reclamar` | JWT + MenuRol | Reclamar para revisión |
+| GET | `/negocio/comprobantes-ventas/:id` | JWT + MenuRol | Obtiene venta por ID |
+| PATCH | `/negocio/comprobantes-ventas/:id` | JWT + MenuRol | Corrige datos de una venta |
+| DELETE | `/negocio/comprobantes-ventas/:id` | JWT + MenuRol | Elimina venta |
+
 ### OCR
 | Método | Ruta | Guard | Descripción |
 |---|---|---|---|
@@ -245,6 +255,22 @@ menu_id=16 → /pais
 
 ## 7. Estado actual
 
+### Hecho — Producción (críticos y altos resueltos)
+- `synchronize: false` en TypeORM — la BD ya no se altera automáticamente al arrancar
+- `whitelist: true` + `forbidNonWhitelisted: true` en `ValidationPipe` global — propiedades no declaradas en DTO retornan 400
+- `CORS` configurado con `CORS_ORIGIN` por env var — defaults `localhost:3000` y `localhost:4200` para dev
+- Re-hash de contraseña en `PATCH /usuarios/:id` — bcrypt aplicado en `update()` antes del `merge()`
+- MIME + límite 5 MB en `FileInterceptor` OCR — `MULTER_IMAGEN_OPTIONS` en ambos endpoints
+- Validación matemática fiscal en `extraerVenta` — usa `InvoiceParaguayValidatorService` igual que compras
+- Validación buffer vacío en ambos endpoints OCR — `file.size === 0` → 400
+- DTOs de comprobantes (compras y ventas) con validaciones completas: formato `nro_comprobante`, `timbrado` 8 dígitos, `monto_total > 0`, `@IsIn(['S','N'])` para campos booleanos SET, `@IsIn([...])` para `tipo_comprobante_set` y `condicion_operacion`
+- `remove()` consistente en todos los services — retorna `{ message: '...' }` en lugar de void
+- RUC duplicado validado en `ContribuyentesService.create()` → `ConflictException` descriptivo
+- FK errors capturados en `ContribuyentesService.create()` → `BadRequestException` descriptivo
+- Enum `estado_ocr` corregido en `comprobante.entity.ts` — ahora incluye los 6 estados completos
+- CRUD completo de `comprobantes-ventas` — service + controller + module en `/negocio/comprobantes-ventas`
+- Menú `id=17` `/negocio/comprobantes-ventas` creado en BD con permisos para Admin (LGED) y Contador (L-E-)
+
 ### Hecho — Seguridad
 - `JwtStrategy` verifica firma JWT, consulta BD, valida `usuario.activo`
 - `JwtAuthGuard` activo en **todos los controllers** (no quedan endpoints sin protección salvo `/auth/login`)
@@ -273,13 +299,14 @@ menu_id=16 → /pais
 | Tipos doc / Países | ✅ | ❌ | ❌ | ❌ |
 
 ### Pendiente
-- **Encoding MySQL**: acentos y caracteres especiales no se almacenan correctamente — falta configurar `charset: utf8mb4` en la conexión TypeORM
-- **`comprobantes-ventas`** sin controller CRUD propio — solo se accede vía OCR
+- **Migración BD aplicada**: `estado_ocr` en `comprobantes` tiene los 6 estados; columna `created_at` agregada. Entidad sincronizada con BD.
 - No existe módulo de reportes o dashboard
 - `set_rucs` sin endpoint CRUD expuesto
 - `comprobante_asociado` / `timbrado_asociado` no modelados en `comprobantes_ventas`
 - No hay soft delete — borrado físico con `ON DELETE CASCADE`
-- Validar que `synchronize: true` en `AppModule` se cambie a `false` antes de producción
+- Sin paginación en endpoints de lista (GET /comprobantes, /personas, etc.)
+- Sin rate limiting en `/auth/login` (riesgo de fuerza bruta)
+- Sin refresh token — solo `access_token`
 
 ---
 
