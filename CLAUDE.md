@@ -42,13 +42,15 @@ src/
 │   ├── entities/
 │   │   ├── password-reset-token.entity.ts  # Token recuperación contraseña (1h)
 │   │   └── refresh-token.entity.ts         # Refresh token (30 días, rotación)
+│   ├── token-cleanup.service.ts     # @Cron(EVERY_DAY_AT_3AM) — limpia refresh+reset tokens expirados
 │   └── dto/login.dto.ts + forgot-password.dto.ts + reset-password.dto.ts + cambiar-password.dto.ts
 │
 ├── common/                          # Utilidades transversales
-│   ├── autorizacion.module.ts       # @Global() — provee MenuRolGuard
+│   ├── autorizacion.module.ts       # @Global() — provee MenuRolGuard + SuscripcionGuard
 │   ├── guards/
 │   │   ├── api-key.guard.ts         # Guard X-API-KEY (departamento, ciudad)
-│   │   └── menu-rol.guard.ts        # Consulta menu_rol por rol+menú+método HTTP
+│   │   ├── menu-rol.guard.ts        # Consulta menu_rol por rol+menú+método HTTP
+│   │   └── suscripcion.guard.ts     # Bloquea si suscripcion CANCELADA sin trial vigente
 │   ├── decorators/
 │   │   ├── current-user.decorator.ts  # @CurrentUser() → request.user del JWT
 │   │   └── permiso.decorator.ts       # @RequierePermiso('/ruta')
@@ -110,11 +112,11 @@ src/
 | Método | Ruta | Guard |
 |---|---|---|
 | CRUD | `/negocio/contribuyentes` | JWT + MenuRol |
-| CRUD + bolsa | `/negocio/comprobantes` | JWT + MenuRol |
-| CRUD + bolsa | `/negocio/comprobantes-ventas` | JWT + MenuRol |
+| CRUD + bolsa | `/negocio/comprobantes` | JWT + MenuRol + SuscripcionGuard (POST) |
+| CRUD + bolsa | `/negocio/comprobantes-ventas` | JWT + MenuRol + SuscripcionGuard (POST) |
 | CRUD | `/negocio/asignaciones-contables` | JWT + MenuRol |
-| POST | `/ocr-tax/extraer/compra` | JWT + MenuRol + capa 2 |
-| POST | `/ocr-tax/extraer/venta` | JWT + MenuRol + capa 2 |
+| POST | `/ocr-tax/extraer/compra` | JWT + MenuRol + capa 2 (asignacion) + capa 3 (suscripcion) |
+| POST | `/ocr-tax/extraer/venta` | JWT + MenuRol + capa 2 (asignacion) + capa 3 (suscripcion) |
 | GET | `/negocio/exportaciones/rg90/compras` | JWT + MenuRol |
 | GET | `/negocio/exportaciones/rg90/ventas` | JWT + MenuRol |
 
@@ -140,16 +142,25 @@ src/
 
 ## 5. Sistema de seguridad
 
-### Dos capas
+### Tres capas
 **Capa 1 — MenuRolGuard** (`src/common/guards/menu-rol.guard.ts`)
 - JWT válido + `usuario.activo = true` (JwtStrategy lo verifica en BD)
 - Mapeo HTTP → flag: `GET→listar`, `POST→guardar`, `PATCH/PUT→editar`, `DELETE→eliminar`
 - Consulta `menu_rol` por `rol_id + menu.url`
 - Default deny
 
-**Capa 2 — OCR únicamente** (`ocr-tax.controller.ts`)
+**SuscripcionGuard** (`src/common/guards/suscripcion.guard.ts`)
+- Lee `contribuyente_id` del body o query
+- Bloquea (403) si suscripcion está CANCELADA Y no tiene trial vigente (`es_trial=true AND trial_hasta >= hoy`)
+- Aplicado en `POST /negocio/comprobantes` y `POST /negocio/comprobantes-ventas`
+
+**Capa 2 — OCR: asignación contable** (`ocr-tax.controller.ts`)
 - Verifica `asignaciones_contables` para el RUC enviado
 - Si no hay asignación → 403
+
+**Capa 3 — OCR: suscripción** (`ocr-tax.controller.ts`)
+- Verifica suscripción activa o trial vigente del contribuyente resuelto
+- Si está CANCELADA sin trial → 403
 
 ### Rate limiting (`@nestjs/throttler`)
 - Global: 100 req/min por IP (`ThrottlerGuard` como `APP_GUARD` en `AppModule`)
@@ -248,7 +259,8 @@ menu_id=17 → /negocio/comprobantes-ventas
 2. `permitir_guardar` en `/ocr-tax` (MenuRolGuard)
 3. RUC existe como contribuyente
 4. `asignaciones_contables` válida (capa 2)
-5. Buffer no vacío, MIME = JPG/PNG/WebP, tamaño ≤ 5 MB
+5. Suscripción activa o trial vigente (capa 3) — bloquea si CANCELADA sin trial
+6. Buffer no vacío, MIME = JPG/PNG/WebP, tamaño ≤ 5 MB
 6. sharp → WebP → Cloudflare R2
 7. Tesseract.js (primario) → si confianza < 75% o faltan campos → Google Vision (fallback)
 8. RegexParserService extrae campos fiscales
@@ -284,9 +296,11 @@ menu_id=17 → /negocio/comprobantes-ventas
 - `JwtStrategy` verifica firma, BD y `activo`
 - `JwtAuthGuard` en todos los endpoints
 - `MenuRolGuard` en datos de negocio
+- `SuscripcionGuard` en POST comprobantes/comprobantes-ventas — bloquea si suscripcion CANCELADA sin trial
 - `@RequierePermiso` declarado en cada controller
 - `POST /auth/register` protegido con JWT + permiso guardar `/usuarios`
 - Capa 2 OCR: `asignaciones_contables` validada en ambos endpoints
+- Capa 3 OCR: suscripción verificada inline en ambos endpoints
 - `console.log` de contraseñas eliminado
 - ID hardcodeado `999` eliminado
 - Re-hash de password en PATCH usuarios
@@ -319,11 +333,14 @@ menu_id=17 → /negocio/comprobantes-ventas
 - OCR pipeline: Tesseract + Vision + validación fiscal + R2
 - Exportación RG90 compras y ventas
 - Bolsa de revisión para compras y ventas
-- Paginación: `GET /negocio/comprobantes`, `GET /negocio/comprobantes-ventas`, `GET /negocio/contribuyentes` devuelven `{ data, total, page, limit, totalPages }`. Query params: `?page=1&limit=20`
+- **Paginación completa** (2026-06-05): todos los `GET` de listado devuelven `{ data, total, page, limit, totalPages }`. Query params `?page=1&limit=20`. Aplica en: comprobantes, comprobantes-ventas, contribuyentes, personas, usuarios, suscripciones, cuotas-pagos, asignaciones-contables
 - Rate limiting: 100 req/min global, 5 req/min en `/auth/login`
 - Refresh token: login devuelve `access_token` (8h) + `refresh_token` (30d). `/auth/refresh` rota. `/auth/logout` revoca
+- **TokenCleanupService** (2026-06-05): cron `@EVERY_DAY_AT_3AM` elimina `refresh_tokens` y `password_reset_tokens` expirados
 - Soft delete: `comprobantes`, `comprobantes_ventas`, `contribuyentes` tienen `deleted_at`. `DELETE` usa `softDelete()` — el registro permanece en BD con `deleted_at` no nulo, invisible para `find()`
 - GET /auth/me: devuelve el perfil completo del usuario autenticado
+- **SuscripcionGuard** (2026-06-05): bloquea POST de comprobantes si suscripcion CANCELADA sin trial vigente
+- **Free trial** (2026-06-05): campos `es_trial` y `trial_hasta` en `suscripciones` — permite operar sin suscripcion activa durante el período de prueba
 
 ### Email — estado del módulo
 - Librerías instaladas: `@nestjs-modules/mailer` ^2.0.1, `nodemailer` ^8.0.5, `handlebars` ^4.7.9
@@ -337,46 +354,37 @@ menu_id=17 → /negocio/comprobantes-ventas
 ## 9. Cobranzas SaaS — Estado y análisis
 
 ### Lo que SÍ está implementado
-- `suscripciones`: registro de estado (ACTIVO / MOROSO / CANCELADO) por contribuyente
+- `suscripciones`: registro de estado (ACTIVO / MOROSO / CANCELADO) + `es_trial` + `trial_hasta` + `created_at`
 - `cuotas_pagos`: registro de cuotas con monto, vencimiento, fecha de pago, estado (PENDIENTE / PAGADO / VENCIDO)
-- CRUD completo de ambas tablas con JWT + MenuRolGuard
-- El `estado` de suscripción puede leerse para condicionar operaciones (ejemplo: bloquear exportación si CANCELADO)
+- CRUD completo con JWT + MenuRolGuard + paginación
+- `SuscripcionGuard`: bloquea automáticamente si `estado=CANCELADO` sin trial vigente
+- Free trial: al crear suscripcion con `es_trial: true` y `trial_hasta: "YYYY-MM-DD"`, el contribuyente opera durante ese período aunque la suscripcion esté CANCELADA
 
 ### Lo que NO está implementado
 | Concepto | Estado |
 |---|---|
 | Plan/tier del servicio (básico, premium, enterprise) | ❌ No existe tabla `planes` |
 | Límites por plan (máx. comprobantes por mes, usuarios, contribuyentes) | ❌ Sin lógica de cuotas de uso |
-| Período de prueba / free trial | ❌ Sin campo `trial_hasta` ni lógica |
 | Estado de cuenta visible para el contribuyente | ❌ Sin endpoint de resumen |
 | Facturación automática (generar cuotas al renovar) | ❌ Manual |
-| Bloqueo automático al vencer | ❌ Sin middleware que evalúe suscripción en cada request |
-| Modo libre para pruebas/recopilación de datos | ❌ Sin flag de bypass |
-
-### Para implementar "modo libre para pruebas"
-La forma más limpia sería agregar en `suscripciones` un campo `es_trial BOOLEAN DEFAULT FALSE` y una fecha `trial_hasta DATE`. Un guard o interceptor verificaría antes de operaciones de negocio: si el contribuyente tiene suscripción activa O está en período de prueba, puede operar. Esto permitiría recopilar datos reales sin cobrar antes de lanzar el billing.
+| Bloqueo automático en exportaciones | ❌ Guard aplicado solo en comprobantes, no en exportaciones |
 
 ---
 
 ## 10. Pendiente / Gaps funcionales
 
-### Verificado 2025-06-05 — entidades y schema 100% sincronizados
+### Verificado 2026-06-05 — entidades y schema 100% sincronizados
 No hay desincronización entre entidades TypeORM y el schema SQL. Los campos "faltantes" (email_contacto, activo en contribuyentes, timestamps opcionales, etc.) están consistentemente ausentes en ambos lados. Son mejoras futuras, no bugs.
 
-### Gaps funcionales pendientes — qué falta en la API
+### Gaps funcionales pendientes (post 2026-06-05)
 
 | Gap | Impacto | Esfuerzo |
 |---|---|---|
-| **Paginación en módulos secundarios** (personas, usuarios, suscripciones, cuotas, asignaciones, roles, menu, etc.) | Bajo — son catálogos pequeños | Bajo |
-| **Limpieza de tokens expirados** (`refresh_tokens` y `password_reset_tokens` se acumulan) | Medio — rendimiento en el tiempo | Bajo — cron job con `@nestjs/schedule` |
-| **Guard de suscripción** — bloqueo automático si `estado=CANCELADO` | Alto para SaaS real | Medio |
 | **Módulo de planes/tiers** — tabla `planes` + límites por plan | Alto para SaaS real | Alto |
-| **Free trial** — campo `es_trial + trial_hasta` en suscripciones | Medio | Bajo |
-| **Anti-duplicado tributario** — UNIQUE `(contribuyente_id, ruc_emisor, timbrado, nro_comprobante)` en comprobantes | Alto — evita doble carga | Bajo (ALTER TABLE + validación API) |
-| **Endpoint `GET /roles/:id/menus`** — para que frontend construya menú dinámico | Alto para frontend | Bajo |
 | **`email_contacto` en personas** — ausente en entidad y schema | Bajo — el login usa `usuarios.email` | Bajo |
 | **`comprobante_asociado/timbrado_asociado` en ventas** — solo en compras | Medio — notas crédito/débito de ventas | Bajo |
 | **Auditoría de cambios** (`updated_at`, `updated_by`) en comprobantes | Medio | Medio |
+| **Guard suscripción en exportaciones** — no bloquea exportar si CANCELADO | Bajo — dato ya existe | Bajo |
 
 ### Para levantar en un servidor nuevo (listo ✅)
 El archivo `schema_bd_sis_iva.sql` contiene todo lo necesario para instalación fresca:
