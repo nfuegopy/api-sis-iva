@@ -55,6 +55,64 @@ export class NotificationsService {
     return htmlRows;
   }
 
+  async sendBienvenidaEmail(
+    to: string,
+    nombre: string,
+    password: string,
+  ): Promise<void> {
+    const subject = 'Bienvenido al Sistema IVA — Tus credenciales de acceso';
+    const html = `
+      <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #1a56db; padding: 24px; text-align: center;">
+          <h2 style="color: #ffffff; margin: 0;">Sistema IVA — Paraguay</h2>
+        </div>
+        <div style="padding: 28px;">
+          <p>Hola <strong>${nombre}</strong>,</p>
+          <p>Tu cuenta fue creada exitosamente. A continuación tus credenciales de acceso:</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px;">
+            <tr style="background-color: #f4f6f9;">
+              <td style="padding: 12px 16px; border: 1px solid #ddd; width: 40%;"><strong>Email</strong></td>
+              <td style="padding: 12px 16px; border: 1px solid #ddd;">${to}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 16px; border: 1px solid #ddd;"><strong>Contraseña</strong></td>
+              <td style="padding: 12px 16px; border: 1px solid #ddd;">${password}</td>
+            </tr>
+          </table>
+          <p style="color: #e53e3e; font-size: 13px;">Por seguridad, cambiá tu contraseña en el primer inicio de sesión.</p>
+        </div>
+        <div style="background-color: #f4f6f9; padding: 16px; text-align: center; font-size: 12px; color: #888;">
+          Sistema de Lectura y Registro de Comprobantes IVA — Paraguay
+        </div>
+      </div>
+    `;
+    return this.emailProvider.sendEmail(to, subject, html);
+  }
+
+  async sendResetPasswordEmail(to: string, nombre: string, token: string): Promise<void> {
+    const subject = 'Recuperación de contraseña — Sistema IVA';
+    const html = `
+      <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #1a56db; padding: 24px; text-align: center;">
+          <h2 style="color: #ffffff; margin: 0;">Sistema IVA — Recuperación de contraseña</h2>
+        </div>
+        <div style="padding: 28px;">
+          <p>Hola <strong>${nombre}</strong>,</p>
+          <p>Recibimos una solicitud para restablecer tu contraseña. Usá el código siguiente en la pantalla de recuperación:</p>
+          <div style="background-color: #f4f6f9; border-left: 5px solid #1a56db; padding: 20px; margin: 24px 0; text-align: center;">
+            <p style="margin: 0 0 8px 0; font-size: 13px; color: #888;">CÓDIGO DE RECUPERACIÓN (válido 1 hora)</p>
+            <code style="font-size: 22px; font-weight: bold; letter-spacing: 3px; color: #1a56db;">${token}</code>
+          </div>
+          <p style="color: #e53e3e; font-size: 13px;">Si no solicitaste este cambio, ignorá este correo. Tu contraseña no será modificada.</p>
+        </div>
+        <div style="background-color: #f4f6f9; padding: 16px; text-align: center; font-size: 12px; color: #888;">
+          Sistema de Lectura y Registro de Comprobantes IVA — Paraguay
+        </div>
+      </div>
+    `;
+    return this.emailProvider.sendEmail(to, subject, html);
+  }
+
   async sendCotizacionEmail(
     to: string,
     nombreCliente: string,

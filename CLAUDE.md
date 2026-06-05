@@ -346,8 +346,10 @@ menu_id=17 → /negocio/comprobantes-ventas
 - Librerías instaladas: `@nestjs-modules/mailer` ^2.0.1, `nodemailer` ^8.0.5, `handlebars` ^4.7.9
 - SMTP configurado en `.env`: Hostinger puerto 465 SSL (`contacto@acbldeveloper.com`)
 - `NotificationsModule` global con `SmtpEmailProvider` vía `MailerModule`
-- Email de bienvenida enviado fire-and-forget al crear usuario (`es_temporal: false`)
-- Email de reset enviado fire-and-forget en `forgot-password`
+- **`secure`** leído de `MAIL_SECURE` env var — `'true'` activa SSL (puerto 465), `'false'` usa STARTTLS (puerto 587)
+- Email de bienvenida enviado fire-and-forget al crear usuario (`es_temporal: false`) — template HTML con credenciales en tabla
+- Email de reset enviado fire-and-forget en `forgot-password` — template HTML con código 64hex destacado
+- `sendCotizacionEmail` heredado de otro proyecto — no usar en IVA
 
 ---
 
@@ -451,10 +453,22 @@ MAIL_IGNORE_TLS=false           # true solo para certificados auto-firmados en d
 
 ---
 
-## 13. Colección Postman
+## 13. Documentación y colección Postman
 
+### Colección Postman
 Archivo: `collection/Facturacion-IVA.postman_collection.json` (en `.gitignore`)
 
-Variables: `baseUrl=http://localhost:9031`, `token=` (access_token del login), `apiKey=`
+Formato Postman v2.1.0 — **100+ requests en 20 carpetas** cubriendo todos los módulos:
+Auth, Personas, Usuarios, Persona Documentos, Contribuyentes, Comprobantes Compra, Comprobantes Venta, OCR (multipart/form-data), Exportaciones RG90, Asignaciones Contables, Suscripciones, Cuotas de Pago, Roles, Menú, Grupo Menú, Menu-Rol, Tipos de Documento, País (JWT), Departamento (ApiKey), Ciudad (ApiKey).
+
+Variables de colección: `baseUrl=http://localhost:9031`, `token=` (completar con access_token del login), `apiKey=`
 
 Credenciales de prueba: `antonio@demo.com` / `123456`
+
+### Documentación de endpoints
+Archivo: `API_ENDPOINTS.md` — documentación completa de todos los módulos con:
+- Método HTTP, ruta, guards aplicados
+- Tabla de campos del body con tipo y validación
+- Ejemplo de body completo (JSON)
+- Respuesta exitosa y códigos de error posibles
+- Ejemplos de query params para paginación y filtros
