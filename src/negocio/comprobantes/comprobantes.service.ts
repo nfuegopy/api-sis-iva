@@ -6,7 +6,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { FindOptionsWhere, Repository, IsNull } from 'typeorm';
 import { CreateComprobanteDto } from './dto/create-comprobante.dto';
 import { UpdateComprobanteDto } from './dto/update-comprobante.dto';
 import { Comprobante } from './entities/comprobante.entity';
@@ -32,17 +32,21 @@ export class ComprobantesService {
   // LÓGICA DE BOLSA COMÚN (UBER)
   // =========================================================================
 
-  async listarBolsaPendientes(): Promise<Comprobante[]> {
-    return await this.comprobanteRepository.find({
+  async listarBolsaPendientes(
+    page = 1,
+    limit = 20,
+  ): Promise<PaginatedResult<Comprobante>> {
+    const [data, total] = await this.comprobanteRepository.findAndCount({
       where: {
         estado_ocr: 'REQUIERE_REVISION',
-        revisor_id: IsNull(), // Solo trae las que nadie ha reclamado aún
+        revisor_id: IsNull(),
       },
-      order: {
-        fecha_emision: 'ASC', // FIFO: Las más antiguas se revisan primero
-      },
-      relations: ['contribuyente'], // Para que el contador sepa a qué cliente pertenece
+      order: { fecha_emision: 'ASC' },
+      relations: ['contribuyente'],
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async reclamarParaRevision(idComprobante: number, contadorId: number) {
@@ -106,8 +110,11 @@ export class ComprobantesService {
     page = 1,
     limit = 20,
     contribuyente_id?: number,
+    estado_ocr?: string,
   ): Promise<PaginatedResult<Comprobante>> {
-    const where = contribuyente_id ? { contribuyente_id } : {};
+    const where: FindOptionsWhere<Comprobante> = {};
+    if (contribuyente_id) where.contribuyente_id = contribuyente_id;
+    if (estado_ocr) where.estado_ocr = estado_ocr;
     const [data, total] = await this.comprobanteRepository.findAndCount({
       where,
       order: { fecha_emision: 'DESC' },

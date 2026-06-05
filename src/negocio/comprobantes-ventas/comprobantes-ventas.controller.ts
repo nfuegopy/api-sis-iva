@@ -2,19 +2,21 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Delete,
-  Param,
   Body,
+  Param,
   Query,
   ParseIntPipe,
   UseGuards,
-  Post,
 } from '@nestjs/common';
 import { ComprobantesVentasService } from './comprobantes-ventas.service';
+import { CreateComprobanteVentaDto } from './dto/create-comprobante-venta.dto';
 import { UpdateComprobanteVentaDto } from './dto/update-comprobante-venta.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
+import { SuscripcionGuard } from '../../common/guards/suscripcion.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PaginacionDto } from '../../common/dto/paginacion.dto';
@@ -25,9 +27,10 @@ import { PaginacionDto } from '../../common/dto/paginacion.dto';
 export class ComprobantesVentasController {
   constructor(private readonly service: ComprobantesVentasService) {}
 
+  // Rutas estáticas siempre arriba de las rutas con :id
   @Get('bolsa/pendientes')
-  listarBolsa() {
-    return this.service.listarBolsaPendientes();
+  listarBolsa(@Query() paginacion: PaginacionDto) {
+    return this.service.listarBolsaPendientes(paginacion.page, paginacion.limit);
   }
 
   @Post('bolsa/:id/reclamar')
@@ -38,13 +41,20 @@ export class ComprobantesVentasController {
     return this.service.reclamarParaRevision(id, usuario.id);
   }
 
+  @Post()
+  @UseGuards(SuscripcionGuard)
+  create(@Body() dto: CreateComprobanteVentaDto) {
+    return this.service.create(dto);
+  }
+
   @Get()
   findAll(
     @Query() paginacion: PaginacionDto,
     @Query('contribuyente_id') contribuyente_id?: string,
+    @Query('estado_ocr') estado_ocr?: string,
   ) {
     const id = contribuyente_id ? parseInt(contribuyente_id, 10) : undefined;
-    return this.service.findAll(paginacion.page, paginacion.limit, id);
+    return this.service.findAll(paginacion.page, paginacion.limit, id, estado_ocr);
   }
 
   @Get(':id')

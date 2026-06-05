@@ -29,8 +29,8 @@ export class ComprobantesController {
 
   // Rutas estáticas siempre arriba de las rutas con :id
   @Get('bolsa/pendientes')
-  obtenerBolsaComun() {
-    return this.comprobantesService.listarBolsaPendientes();
+  obtenerBolsaComun(@Query() paginacion: PaginacionDto) {
+    return this.comprobantesService.listarBolsaPendientes(paginacion.page, paginacion.limit);
   }
 
   @Post('bolsa/:id/reclamar')
@@ -54,9 +54,10 @@ export class ComprobantesController {
   findAll(
     @Query() paginacion: PaginacionDto,
     @Query('contribuyente_id') contribuyente_id?: string,
+    @Query('estado_ocr') estado_ocr?: string,
   ) {
     const id = contribuyente_id ? parseInt(contribuyente_id, 10) : undefined;
-    return this.comprobantesService.findAll(paginacion.page, paginacion.limit, id);
+    return this.comprobantesService.findAll(paginacion.page, paginacion.limit, id, estado_ocr);
   }
 
   @Get(':id')

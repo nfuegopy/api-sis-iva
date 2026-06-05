@@ -351,6 +351,8 @@ export class OcrTaxController {
 
     const total = OcrNormalizerHelper.cleanAmount(datosExtraidos.total);
     const gravada10 = OcrNormalizerHelper.cleanAmount(datosExtraidos.gravada10);
+    const gravada5 = OcrNormalizerHelper.cleanAmount(datosExtraidos.gravada5);
+    const exenta = OcrNormalizerHelper.cleanAmount(datosExtraidos.exenta);
     const fechaConvertida = OcrNormalizerHelper.parseDate(
       datosExtraidos.fechaEmision,
     );
@@ -367,6 +369,14 @@ export class OcrTaxController {
       fecha_emision: fechaParaGuardar,
       monto_total: total,
       gravada_10: gravada10,
+      gravada_5: gravada5,
+      exenta: exenta,
+      iva_10: invoiceResult.calculosGenerados.iva10,
+      iva_5: invoiceResult.calculosGenerados.iva5,
+      imputa_iva: 'S',
+      imputa_ire: 'N',
+      imputa_irp: 'S',
+      moneda_extranjera: 'N',
       url_foto_webp: urlCloudflare,
       confianza_ocr: Math.round(ocrResult.confidence),
       estado_ocr: estadoRevisionVenta,
