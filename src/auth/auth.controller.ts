@@ -5,12 +5,17 @@ import {
   Post,
   Get,
   Body,
+  Req,
+  Res,
   UnauthorizedException,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
+import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { CreateUsuarioDto } from 'src/gestion/usuarios/dto/create-usuario.dto';
 import { UsuariosService } from 'src/gestion/usuarios/usuarios.service';
@@ -28,6 +33,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usuariosService: UsuariosService,
+    private readonly configService: ConfigService,
   ) {}
 
   // Login — público con rate limit estricto (5 intentos / minuto)
@@ -105,5 +111,26 @@ export class AuthController {
   ) {
     await this.authService.cambiarPassword(user.id, dto.password_actual, dto.nueva_password);
     return { message: 'Contraseña actualizada correctamente.' };
+  }
+
+  // Google OAuth — redirige al selector de cuenta de Google
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth() {
+    // Passport redirige automáticamente a Google
+  }
+
+  // Google OAuth — callback tras autenticación exitosa en Google
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleCallback(@Req() req: { user: any }, @Res() res: Response) {
+    const tokens = await this.authService.login(req.user);
+    const frontendUrl =
+      this.configService.get<string>('GOOGLE_REDIRECT_FRONTEND_URL') ||
+      'http://localhost:3000';
+    const redirect = new URL('/auth/google/callback', frontendUrl);
+    redirect.searchParams.set('access_token', tokens.access_token);
+    redirect.searchParams.set('refresh_token', tokens.refresh_token);
+    return res.redirect(redirect.toString());
   }
 }

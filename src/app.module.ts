@@ -12,7 +12,6 @@ import { AppService } from './app.service';
 // Módulos Core / Transversales
 import { AuthModule } from './auth/auth.module';
 import { AutorizacionModule } from './common/autorizacion.module';
-import { FirebaseModule } from './firebase/firebase.module';
 import { NotificationsModule } from './common/notifications/notifications.module';
 
 // Gestión de Usuarios y Personas
@@ -67,7 +66,6 @@ import { ExportacionesModule } from './negocio/exportaciones/exportaciones.modul
 
     AuthModule,
     AutorizacionModule,
-    FirebaseModule,
     NotificationsModule,
 
     UsuariosModule,

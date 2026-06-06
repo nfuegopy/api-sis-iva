@@ -1,9 +1,7 @@
 /* eslint-disable prettier/prettier */
 import { Module, Global } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
-import { FirebaseEmailProvider } from './providers/firebase-email.provider';
 import { SmtpEmailProvider } from './providers/smtp-email.provider';
-import { FirebaseModule } from '../../firebase/firebase.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
@@ -11,7 +9,6 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 @Global()
 @Module({
   imports: [
-    FirebaseModule,
     ConfigModule,
     MailerModule.forRootAsync({
       imports: [ConfigModule],
