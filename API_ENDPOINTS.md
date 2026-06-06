@@ -1,7 +1,8 @@
 # Facturación IVA — Documentación de Endpoints
 
-**Base URL:** `http://localhost:9031`  
-**Puerto producción:** `9031`  
+**Base URL QA:** `https://api-qa.acbldeveloper.com`  
+**Base URL local:** `http://localhost:9031`  
+**Puerto:** configurable vía variable de entorno `PORT` (default: `9031`)  
 **Formato:** JSON (`Content-Type: application/json`), salvo OCR (multipart/form-data)
 
 ---
@@ -46,6 +47,7 @@ Todos responden:
 | `JwtAuthGuard` | Requiere `Authorization: Bearer <token>` válido |
 | `MenuRolGuard` | Verifica que el rol del usuario tenga permiso para el método HTTP en esa ruta |
 | `SuscripcionGuard` | Bloquea si la suscripción del contribuyente está CANCELADA y sin trial vigente |
+| `GoogleAuthGuard` | Maneja el flujo OAuth2 con Google (redirect + callback) |
 | `ApiKeyGuard` | Requiere header `x-api-key: <API_KEY>` (solo endpoints geográficos) |
 | `Throttle (login)` | Máximo 5 intentos por minuto por IP |
 
@@ -235,6 +237,34 @@ Cambia la contraseña del usuario autenticado, requiriendo la contraseña actual
 ```json
 { "message": "Contraseña actualizada correctamente." }
 ```
+
+---
+
+### GET /auth/google
+Inicia el flujo de autenticación con Google. Passport redirige automáticamente al selector de cuenta de Google.  
+**Guard:** `GoogleAuthGuard` (público)
+
+> No requiere body ni headers. El usuario es redirigido al login de Google.  
+> Pendiente: completar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env`.
+
+---
+
+### GET /auth/google/callback
+Callback al que redirige Google tras la autenticación exitosa. No se llama directamente — Google lo invoca automáticamente.  
+**Guard:** `GoogleAuthGuard`
+
+**Comportamiento:**
+- Si el email de Google ya existe en la BD → retorna el usuario existente
+- Si no existe → crea persona (sin documento de identidad) + usuario con rol Contador (id=2) y password aleatorio
+- Redirige al frontend con los tokens como query params:
+
+```
+GET {GOOGLE_REDIRECT_FRONTEND_URL}/auth/google/callback
+    ?access_token=eyJhbGci...
+    &refresh_token=f73b0cc2...
+```
+
+**El frontend recibe los tokens y los almacena igual que en el login normal.**
 
 ---
 

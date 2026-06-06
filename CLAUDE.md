@@ -13,16 +13,15 @@ API REST para lectura, registro y exportación de comprobantes fiscales tributar
 | Framework | NestJS 11 (TypeScript 5.7) |
 | ORM | TypeORM 0.3 |
 | Base de datos | MySQL — charset utf8mb4 — sincronización manual (synchronize: false) |
-| Auth | JWT (`@nestjs/jwt`) + Passport (`passport-jwt`) |
+| Auth | JWT (`@nestjs/jwt`) + Passport (`passport-jwt`) + Google OAuth2 (`passport-google-oauth20`) |
 | Hashing | bcrypt |
 | OCR primario | Tesseract.js 7 |
 | OCR fallback | Google Cloud Vision (`@google-cloud/vision`) |
 | Imágenes | sharp (optimización y conversión a WebP) |
 | Storage | Cloudflare R2 vía AWS S3 SDK |
-| Backup storage | Firebase Admin SDK (Storage + Firestore) |
 | Email | Nodemailer + `@nestjs-modules/mailer` |
 | Validación DTOs | class-validator + class-transformer |
-| Puerto | 9031 |
+| Puerto | `9031` (default) — configurable vía variable de entorno `PORT` |
 
 ---
 
@@ -33,12 +32,16 @@ src/
 ├── main.ts                          # Bootstrap: puerto 9031, CORS, ValidationPipe global
 ├── app.module.ts
 │
-├── auth/                            # Autenticación JWT
-│   ├── auth.controller.ts           # login, register, me, refresh, logout, forgot/reset/cambiar-password
+├── auth/                            # Autenticación JWT + Google OAuth2
+│   ├── auth.controller.ts           # login, register, me, refresh, logout, forgot/reset/cambiar-password, google, google/callback
 │   ├── auth.module.ts
 │   ├── auth.service.ts              # validateUser, login (JWT+RT), refresh (rotación), logout, forgotPassword, resetPassword, cambiarPassword
-│   ├── strategies/jwt.strategy.ts   # JwtStrategy: valida token, verifica activo en BD
-│   ├── guards/jwt-auth.guard.ts     # JwtAuthGuard: wrapper AuthGuard('jwt')
+│   ├── strategies/
+│   │   ├── jwt.strategy.ts          # JwtStrategy: valida token, verifica activo en BD
+│   │   └── google.strategy.ts       # GoogleStrategy: valida perfil Google, llama findOrCreateGoogleUser()
+│   ├── guards/
+│   │   ├── jwt-auth.guard.ts        # JwtAuthGuard: wrapper AuthGuard('jwt')
+│   │   └── google-auth.guard.ts     # GoogleAuthGuard: wrapper AuthGuard('google')
 │   ├── entities/
 │   │   ├── password-reset-token.entity.ts  # Token recuperación contraseña (1h)
 │   │   └── refresh-token.entity.ts         # Refresh token (30 días, rotación)
@@ -59,8 +62,6 @@ src/
 │   ├── interfaces/
 │   │   └── paginated-result.interface.ts  # { data, total, page, limit, totalPages }
 │   └── notifications/
-│
-├── firebase/ — Firebase Admin SDK (Storage + Firestore)
 │
 ├── gestion/
 │   ├── personas/                    # JWT + MenuRol
@@ -100,6 +101,8 @@ src/
 | POST | `/auth/forgot-password` | Público | Envía email con token 64hex (1h) |
 | POST | `/auth/reset-password` | Público | Usa token del email, actualiza password |
 | POST | `/auth/cambiar-password` | JWT | Cambia password conociendo la actual |
+| GET | `/auth/google` | Público (GoogleAuthGuard) | Redirige al selector de cuenta Google |
+| GET | `/auth/google/callback` | Público (GoogleAuthGuard) | Callback OAuth — crea usuario si no existe, redirige al frontend con tokens |
 
 ### Gestión
 | Método | Ruta | Guard |
@@ -282,12 +285,28 @@ menu_id=17 → /negocio/comprobantes-ventas
 - Protege contra doble reclamo concurrente
 - Al hacer `PATCH` con `estado_ocr: 'VERIFICADO_HUMANO'` → actualiza `ocr_entrenamientos` con `json_humano` y marca `LISTO_PARA_ENTRENAR` (en compras y ventas)
 
-### Email — 3 plantillas implementadas (`NotificationsService`)
+### Google OAuth2 (`/auth/google`)
+
+**Flujo completo:**
+1. Frontend redirige al usuario a `GET /auth/google`
+2. Passport redirige a Google (selector de cuenta)
+3. Google autentica y llama `GET /auth/google/callback`
+4. `GoogleStrategy.validate()` recibe el perfil y llama `findOrCreateGoogleUser()`
+5. Si el usuario no existe → se crea con rol **Contador (id=2)** y password aleatorio (bcrypt, nunca expuesto)
+6. Si ya existe → se retorna el usuario existente con relaciones cargadas
+7. La API redirige al frontend a `GOOGLE_REDIRECT_FRONTEND_URL/auth/google/callback?access_token=...&refresh_token=...`
+
+**Consideraciones:**
+- Usuarios Google se crean **sin documento de identidad** (no aplica para OAuth)
+- El password almacenado es un hash de 64 bytes aleatorios — nunca se puede usar para login por contraseña
+- El rol por defecto es Contador (id=2). Se puede cambiar posteriormente con `PATCH /usuarios/:id`
+- `GOOGLE_CALLBACK_URL` debe estar registrada como URI autorizada en Google Cloud Console
+
+### Email — 2 plantillas activas (`NotificationsService` vía SMTP Hostinger)
 | Método | Cuándo se llama |
 |---|---|
-| `sendBienvenidaEmail` | Al crear usuario (`es_temporal: false`) |
+| `sendBienvenidaEmail` | Al crear usuario con `es_temporal: false` (no aplica a usuarios Google) |
 | `sendResetPasswordEmail` | Al solicitar recuperación de contraseña |
-| `sendCotizacionEmail` | (Heredado otro proyecto — no usar en IVA) |
 
 ---
 
@@ -346,13 +365,20 @@ menu_id=17 → /negocio/comprobantes-ventas
 - **Free trial**: `es_trial` + `trial_hasta` en `suscripciones`
 
 ### Email — estado del módulo
-- Librerías instaladas: `@nestjs-modules/mailer` ^2.0.1, `nodemailer` ^8.0.5, `handlebars` ^4.7.9
+- Librerías: `@nestjs-modules/mailer` ^2.0.1, `nodemailer` ^8.0.5, `handlebars` ^4.7.9
 - SMTP configurado en `.env`: Hostinger puerto 465 SSL (`contacto@acbldeveloper.com`)
-- `NotificationsModule` global con `SmtpEmailProvider` vía `MailerModule`
+- `NotificationsModule` global con `SmtpEmailProvider` vía `MailerModule` (Firebase eliminado)
 - **`secure`** leído de `MAIL_SECURE` env var — `'true'` activa SSL (puerto 465), `'false'` usa STARTTLS (puerto 587)
-- Email de bienvenida enviado fire-and-forget al crear usuario (`es_temporal: false`) — template HTML con credenciales en tabla
+- Email de bienvenida enviado fire-and-forget al crear usuario (`es_temporal: false`) — NO aplica a usuarios Google
 - Email de reset enviado fire-and-forget en `forgot-password` — template HTML con código 64hex destacado
-- `sendCotizacionEmail` heredado de otro proyecto — no usar en IVA
+
+### Google OAuth2 — estado del módulo
+- Librería: `passport-google-oauth20` + `@types/passport-google-oauth20`
+- `GoogleStrategy` registrada en `AuthModule`
+- Nuevos endpoints: `GET /auth/google` y `GET /auth/google/callback`
+- `findOrCreateGoogleUser()` en `UsuariosService` — crea persona sin documentos, password aleatorio bcrypt
+- Variables requeridas en `.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`, `GOOGLE_REDIRECT_FRONTEND_URL`
+- Pendiente: completar credenciales en Google Cloud Console y llenar las variables del `.env`
 
 ---
 
@@ -421,6 +447,8 @@ Incluye: 22 tablas, seed de roles, grupos, menús, permisos (41 registros menu_r
 ## 12. Variables de entorno requeridas
 
 ```env
+PORT=9031                       # Puerto del servidor (opcional — default: 9031)
+
 DB_HOST=
 DB_PORT=3306
 DB_USERNAME=
@@ -434,14 +462,18 @@ CORS_ORIGIN=http://localhost:3000
 
 API_KEY=                        # Para endpoints ApiKeyGuard (departamento, ciudad)
 
-R2_ENDPOINT=                    # Cloudflare R2
+# Google OAuth2
+GOOGLE_CLIENT_ID=               # Desde Google Cloud Console → Credenciales → OAuth 2.0
+GOOGLE_CLIENT_SECRET=
+GOOGLE_CALLBACK_URL=https://api-qa.acbldeveloper.com/auth/google/callback
+GOOGLE_REDIRECT_FRONTEND_URL=http://localhost:3000  # URL base del frontend
+
+# Cloudflare R2
+R2_ENDPOINT=
 R2_ACCESS_KEY=
 R2_SECRET_KEY=
 R2_BUCKET_NAME=
 R2_PUBLIC_URL=
-
-FIREBASE_STORAGE_BUCKET=        # Firebase (backup storage)
-FIREBASE_CREDENTIALS=           # JSON como string
 
 # SMTP (Hostinger — puerto 465 SSL)
 MAIL_HOST=smtp.hostinger.com

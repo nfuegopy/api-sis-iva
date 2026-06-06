@@ -1,8 +1,9 @@
 # Sistema de Facturación IVA Paraguay — Guía Técnica Completa
 
-**API Base URL:** `http://localhost:9031`  
-**Stack:** NestJS 11 · TypeORM 0.3 · MySQL 8.0 · JWT · Tesseract.js · Google Vision · Cloudflare R2  
-**Fecha:** 2026-06-05
+**API Base URL QA:** `https://api-qa.acbldeveloper.com`  
+**API Base URL local:** `http://localhost:9031` (puerto configurable vía `PORT` env var)  
+**Stack:** NestJS 11 · TypeORM 0.3 · MySQL 8.0 · JWT · Google OAuth2 · Tesseract.js · Google Vision · Cloudflare R2  
+**Fecha:** 2026-06-06
 
 ---
 
@@ -271,7 +272,24 @@ Sí → 403 "La suscripción del contribuyente está CANCELADA"
 
 ### 4.1 Crear un usuario nuevo
 
-Solo un usuario con permiso `guardar` en `/usuarios` puede crear otros usuarios. Hay dos formas:
+Hay tres formas de crear un usuario en el sistema:
+
+**Opción C — Login con Google (OAuth2):**
+```
+GET https://api-qa.acbldeveloper.com/auth/google
+→ El usuario elige su cuenta Google
+→ Si no existe en el sistema: se crea automáticamente con rol Contador
+→ El frontend recibe: /auth/google/callback?access_token=...&refresh_token=...
+```
+No requiere token de admin. El usuario queda creado con:
+- Nombre y apellido tomados del perfil Google
+- Sin documento de identidad (no aplica para OAuth)
+- Rol: Contador (id=2) por defecto
+- Password: aleatorio (nunca se usa para login por contraseña)
+
+---
+
+Solo un usuario con permiso `guardar` en `/usuarios` puede crear usuarios por las opciones A y B:
 
 **Opción A — Creando persona en el mismo request:**
 ```http
@@ -694,6 +712,7 @@ Authorization: Bearer <token>
 
 ### 10.1 Flujo de autenticación
 
+**Opción A — Login con email/password:**
 ```javascript
 // 1. Login
 const res = await fetch('/auth/login', {
@@ -731,6 +750,40 @@ axios.interceptors.response.use(
   }
 );
 ```
+
+**Opción B — Login con Google OAuth2:**
+```javascript
+// El frontend simplemente redirige al endpoint de Google
+window.location.href = 'https://api-qa.acbldeveloper.com/auth/google';
+
+// Google autentica → la API redirige de vuelta al frontend:
+// https://mifrontend.com/auth/google/callback?access_token=eyJ...&refresh_token=abc123
+
+// En la página /auth/google/callback del frontend:
+const params = new URLSearchParams(window.location.search);
+const access_token = params.get('access_token');
+const refresh_token = params.get('refresh_token');
+
+// Guardar igual que en el login normal
+localStorage.setItem('access_token', access_token);
+localStorage.setItem('refresh_token', refresh_token);
+
+// Redirigir al home
+window.location.href = '/dashboard';
+```
+
+> Con popup (sin perder la página actual):
+> ```javascript
+> const popup = window.open('/auth/google', 'google-login', 'width=500,height=600');
+> window.addEventListener('message', (event) => {
+>   if (event.data.access_token) {
+>     localStorage.setItem('access_token', event.data.access_token);
+>     popup.close();
+>   }
+> });
+> ```
+
+---
 
 ### 10.2 Menú dinámico basado en permisos
 
@@ -1069,6 +1122,7 @@ done
 | Módulo | Endpoints | Estado |
 |---|---|---|
 | Auth | login, me, refresh, logout, register, forgot/reset/cambiar-password | ✅ |
+| Auth Google OAuth | GET /auth/google + GET /auth/google/callback | ✅ (pendiente credenciales Google Cloud) |
 | Personas | CRUD + paginación | ✅ |
 | Usuarios | CRUD + paginación + email bienvenida | ✅ |
 | Persona Documentos | CRUD | ✅ |
