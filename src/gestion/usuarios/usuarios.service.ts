@@ -11,6 +11,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { Usuario } from './entities/usuario.entity';
@@ -146,6 +147,41 @@ export class UsuariosService {
       relations: ['persona', 'rol'],
     });
     return user ?? undefined;
+  }
+
+  // Busca o crea un usuario autenticado con Google (sin cédula requerida)
+  async findOrCreateGoogleUser(data: {
+    email: string;
+    nombre: string;
+    apellido: string;
+  }): Promise<Usuario> {
+    const existing = await this.usuarioRepository.findOne({
+      where: { email: data.email },
+      relations: ['persona', 'rol'],
+    });
+    if (existing) return existing;
+
+    const persona = await this.personasService.create({
+      nombre: data.nombre,
+      apellido: data.apellido || 'Sin apellido',
+      documentos: [],
+    } as any);
+
+    // Password aleatorio — usuarios Google nunca usan login por contraseña
+    const randomPass = crypto.randomBytes(32).toString('hex');
+    const nuevoUsuario = this.usuarioRepository.create({
+      email: data.email,
+      password: randomPass,
+      rol_id: 2, // Contador por defecto para nuevos registros Google
+      persona_id: persona.id,
+      es_temporal: false,
+    });
+
+    const saved = await this.usuarioRepository.save(nuevoUsuario);
+    return (await this.usuarioRepository.findOne({
+      where: { id: saved.id },
+      relations: ['persona', 'rol'],
+    })) as Usuario;
   }
 
   // Metodo creado para cotizacion y creacion automatica de usuarios
