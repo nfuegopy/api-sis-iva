@@ -20,6 +20,7 @@ import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
 import { SuscripcionGuard } from '../../common/guards/suscripcion.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 import { PaginacionDto } from '../../common/dto/paginacion.dto';
+import { FiltroComprobantesDto } from './dto/filtro-comprobantes.dto';
 
 @Controller('negocio/comprobantes')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
@@ -51,13 +52,13 @@ export class ComprobantesController {
   }
 
   @Get()
-  findAll(
-    @Query() paginacion: PaginacionDto,
-    @Query('contribuyente_id') contribuyente_id?: string,
-    @Query('estado_ocr') estado_ocr?: string,
-  ) {
-    const id = contribuyente_id ? parseInt(contribuyente_id, 10) : undefined;
-    return this.comprobantesService.findAll(paginacion.page, paginacion.limit, id, estado_ocr);
+  findAll(@Query() filtros: FiltroComprobantesDto) {
+    return this.comprobantesService.findAll(
+      filtros.page,
+      filtros.limit,
+      filtros.contribuyente_id,
+      filtros.estado_ocr,
+    );
   }
 
   @Get(':id')

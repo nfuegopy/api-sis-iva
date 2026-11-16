@@ -1,5 +1,13 @@
 # Base de Datos - Sistema de Lectura y Registro de Comprobantes IVA
 
+> ⚠️ **Corregido P0.7** C1: Autoridad `.ai-work/` prevalece; este documento es histórico donde contradiga.
+
+## Correcciones P0.7
+| Sección | Corrección     |
+|---|---|
+| General | C1: Banner de autoridad |
+| 2. Alcance | C4/C5: notas históricas y retiros |
+
 ## 1. Objetivo del documento
 
 Este documento explica la estructura de la base de datos del sistema de lectura de facturas y comprobantes tributarios. La base está preparada para trabajar con contribuyentes, usuarios, roles, menú, permisos de acciones, comprobantes de compras, comprobantes de ventas, validaciones orientadas a SET/Marangatu, trazabilidad OCR y control de acceso por contribuyente.
@@ -19,7 +27,8 @@ La base cubre estos bloques principales:
 | Operación SET/OCR | `comprobantes`, `comprobantes_ventas`, `set_rucs`, `ocr_entrenamientos` | Guardar comprobantes leídos, datos extraídos, validaciones y trazabilidad del OCR. |
 | Cobranzas SaaS | `suscripciones`, `cuotas_pagos` | Administrar estado comercial del contribuyente dentro del servicio. |
 
-**Estado actual del schema:** 22 tablas. Verificado y aplicado 2026-06-05. Script idempotente: `schema_bd_sis_iva.sql`.
+> ⚠️ **Corregido P0.7** C4: SQL/seed histórico retirado como vía de instalación. Las migraciones son solo tooling (carpeta vacía); baseline histórico de 21 tablas locales según `.ai-work/MIGRATIONS_GUIDE.md`. Usar `npm run seed:catalogs` y `npm run bootstrap:admin` (ver `.ai-work/BOOTSTRAP_ADMIN.md`, `.ai-work/SEED_CATALOGS.md`).
+> ⚠️ **Corregido P0.7** C5: Baseline de 21 tablas, catálogos vigentes 37 `menu_rol`. Motor objetivo MariaDB 11.8.x (D23); runtime contra MariaDB aún no validado. Autoridad: `.ai-work/SCHEMA_INVENTORY.md`, `.ai-work/DB_ENGINE_COMPATIBILITY.md`.
 
 ## 3. Base normativa considerada para SET/Marangatu
 
@@ -1246,3 +1255,5 @@ La parte más importante para SET es la combinación de `comprobantes`, `comprob
 La parte más importante para mejora de lectura es `ocr_entrenamientos`, porque conserva la diferencia entre lectura automática y corrección humana.
 
 Con esta base bien documentada, el siguiente paso lógico es ajustar la API para que todas las operaciones respeten permisos, asignaciones, validaciones SET, estados OCR y trazabilidad humana sin romper la estructura actual.
+
+

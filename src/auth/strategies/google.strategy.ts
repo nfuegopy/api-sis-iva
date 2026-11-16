@@ -5,16 +5,20 @@ import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 import { UsuariosService } from 'src/gestion/usuarios/usuarios.service';
 
+import { getGoogleOAuthConfig } from '../config/google-oauth.config';
+
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(
     configService: ConfigService,
     private readonly usuariosService: UsuariosService,
   ) {
+    const config = getGoogleOAuthConfig(configService)!;
+    
     super({
-      clientID: configService.get<string>('GOOGLE_CLIENT_ID') ?? 'NOT_CONFIGURED',
-      clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET') ?? 'NOT_CONFIGURED',
-      callbackURL: configService.get<string>('GOOGLE_CALLBACK_URL') ?? 'http://localhost:9031/auth/google/callback',
+      clientID: config.clientId,
+      clientSecret: config.clientSecret,
+      callbackURL: config.callbackUrl,
       scope: ['email', 'profile'],
     });
   }

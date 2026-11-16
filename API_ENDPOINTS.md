@@ -1,13 +1,15 @@
-# Facturación IVA — Documentación de Endpoints
+# FacturaciÃ³n IVA â€” DocumentaciÃ³n de Endpoints
+
+> ⚠️ **Corregido P0.7** C1: Autoridad .ai-work.
 
 **Base URL QA:** `https://api-qa.acbldeveloper.com`  
 **Base URL local:** `http://localhost:9031`  
-**Puerto:** configurable vía variable de entorno `PORT` (default: `9031`)  
+**Puerto:** configurable vÃ­a variable de entorno `PORT` (default: `9031`)  
 **Formato:** JSON (`Content-Type: application/json`), salvo OCR (multipart/form-data)
 
 ---
 
-## Autenticación
+## AutenticaciÃ³n
 
 Todos los endpoints protegidos requieren el header:
 ```
@@ -18,14 +20,14 @@ El token se obtiene haciendo `POST /auth/login`. Dura **8 horas**.
 
 ---
 
-## Paginación
+## PaginaciÃ³n
 
 Los endpoints de listado aceptan query params opcionales:
 ```
 ?page=1&limit=20
 ```
-- `page`: número de página (default: 1)
-- `limit`: registros por página (default: 20, máximo: 100)
+- `page`: nÃºmero de pÃ¡gina (default: 1)
+- `limit`: registros por pÃ¡gina (default: 20, mÃ¡ximo: 100)
 
 Todos responden:
 ```json
@@ -42,18 +44,23 @@ Todos responden:
 
 ## Guards disponibles
 
-| Guard | Descripción |
+| Guard | DescripciÃ³n |
 |---|---|
-| `JwtAuthGuard` | Requiere `Authorization: Bearer <token>` válido |
-| `MenuRolGuard` | Verifica que el rol del usuario tenga permiso para el método HTTP en esa ruta |
-| `SuscripcionGuard` | Bloquea si la suscripción del contribuyente está CANCELADA y sin trial vigente |
+| `JwtAuthGuard` | Requiere `Authorization: Bearer <token>` vÃ¡lido |
+| `MenuRolGuard` | Verifica que el rol del usuario tenga permiso para el mÃ©todo HTTP en esa ruta |
+| `SuscripcionGuard` | Bloquea si la suscripciÃ³n del contribuyente estÃ¡ CANCELADA y sin trial vigente |
 | `GoogleAuthGuard` | Maneja el flujo OAuth2 con Google (redirect + callback) |
-| `ApiKeyGuard` | Requiere header `x-api-key: <API_KEY>` (solo endpoints geográficos) |
-| `Throttle (login)` | Máximo 5 intentos por minuto por IP |
+| `ApiKeyGuard` | Requiere header `x-api-key: <API_KEY>` (solo endpoints geogrÃ¡ficos) |
+| `Throttle (login)` | MÃ¡ximo 5 intentos por minuto por IP |
 
 ---
 
-## 1. Autenticación (`/auth`)
+## Correcciones P0.7
+| Sección | Corrección    |
+|---|---|
+| Credenciales | T3: bootstrap, 0 filas Email/Password |
+
+## 1. AutenticaciÃ³n (/auth)
 
 ### POST /auth/login
 Autentica un usuario y devuelve tokens JWT.  
@@ -62,8 +69,8 @@ Autentica un usuario y devuelve tokens JWT.
 **Body:**
 ```json
 {
-  "email": "admin@sistema.com",
-  "password": "12356"
+  "email": "<contraseÃ±a-segura>",
+  "password": "<contraseÃ±a-segura>"
 }
 ```
 
@@ -74,7 +81,7 @@ Autentica un usuario y devuelve tokens JWT.
   "refresh_token": "7137c9efa...",
   "user": {
     "id": 1,
-    "email": "admin@sistema.com",
+    "email": "<contraseÃ±a-segura>",
     "nombre": "Admin",
     "apellido": "Sistema",
     "rol": {
@@ -85,7 +92,7 @@ Autentica un usuario y devuelve tokens JWT.
 }
 ```
 
-**Errores:** `401` credenciales inválidas, `429` demasiados intentos.
+**Errores:** `401` credenciales invÃ¡lidas, `429` demasiados intentos.
 
 ---
 
@@ -97,7 +104,7 @@ Devuelve el perfil completo del usuario autenticado.
 ```json
 {
   "id": 1,
-  "email": "admin@sistema.com",
+  "email": "<contraseÃ±a-segura>",
   "activo": true,
   "rol_id": 1,
   "persona_id": 1,
@@ -110,8 +117,8 @@ Devuelve el perfil completo del usuario autenticado.
 ---
 
 ### POST /auth/refresh
-Rota el refresh token y devuelve nuevos tokens. El token anterior queda inválido.  
-**Guard:** Público
+Rota el refresh token y devuelve nuevos tokens. El token anterior queda invÃ¡lido.  
+**Guard:** PÃºblico
 
 **Body:**
 ```json
@@ -128,12 +135,12 @@ Rota el refresh token y devuelve nuevos tokens. El token anterior queda inválid
 }
 ```
 
-**Errores:** `401` token inválido o ya rotado.
+**Errores:** `401` token invÃ¡lido o ya rotado.
 
 ---
 
 ### POST /auth/logout
-Revoca el refresh token activo. El access_token sigue siendo válido hasta expirar (8h).  
+Revoca el refresh token activo. El access_token sigue siendo vÃ¡lido hasta expirar (8h).  
 **Guard:** `JwtAuthGuard`
 
 **Body:**
@@ -145,7 +152,7 @@ Revoca el refresh token activo. El access_token sigue siendo válido hasta expir
 
 **Respuesta (200):**
 ```json
-{ "message": "Sesión cerrada correctamente." }
+{ "message": "SesiÃ³n cerrada correctamente." }
 ```
 
 ---
@@ -158,11 +165,11 @@ Registra un nuevo usuario. Requiere permiso de guardar en `/usuarios`.
 ```json
 {
   "email": "contador@empresa.com",
-  "password": "Password123",
+  "password": "<contraseÃ±a-segura>",
   "rol_id": 2,
   "persona": {
     "nombre": "Carlos",
-    "apellido": "González",
+    "apellido": "GonzÃ¡lez",
     "telefono": "0981234567",
     "documentos": [
       { "tipo_documento_id": 1, "numero": "4567890" }
@@ -175,74 +182,74 @@ Registra un nuevo usuario. Requiere permiso de guardar en `/usuarios`.
 ```json
 {
   "email": "contador@empresa.com",
-  "password": "Password123",
+  "password": "<contraseÃ±a-segura>",
   "rol_id": 2,
   "persona_id": 5
 }
 ```
 
 **Respuesta (201):** Objeto `Usuario` creado.  
-**Nota:** Se envía email de bienvenida automáticamente.
+**Nota:** Se envÃ­a email de bienvenida automÃ¡ticamente.
 
 ---
 
 ### POST /auth/forgot-password
-Envía un email con enlace de recuperación (válido 1 hora).  
-**Guard:** Público
+EnvÃ­a un email con enlace de recuperaciÃ³n (vÃ¡lido 1 hora).  
+**Guard:** PÃºblico
 
 **Body:**
 ```json
-{ "email": "admin@sistema.com" }
+{ "email": "<contraseÃ±a-segura>" }
 ```
 
 **Respuesta (200):**
 ```json
-{ "message": "Correo de recuperación enviado." }
+{ "message": "Correo de recuperaciÃ³n enviado." }
 ```
 
 ---
 
 ### POST /auth/reset-password
-Restablece la contraseña usando el token del email.  
-**Guard:** Público
+Restablece la contraseÃ±a usando el token del email.  
+**Guard:** PÃºblico
 
 **Body:**
 ```json
 {
   "token": "a3f8c2d1e4b7...",
-  "nueva_password": "NuevoPassword123"
+  "nueva_password": "<contraseÃ±a-segura>"
 }
 ```
 
 **Respuesta (200):**
 ```json
-{ "message": "Contraseña actualizada correctamente." }
+{ "message": "ContraseÃ±a actualizada correctamente." }
 ```
 
 ---
 
 ### POST /auth/cambiar-password
-Cambia la contraseña del usuario autenticado, requiriendo la contraseña actual.  
+Cambia la contraseÃ±a del usuario autenticado, requiriendo la contraseÃ±a actual.  
 **Guard:** `JwtAuthGuard`
 
 **Body:**
 ```json
 {
-  "password_actual": "12356",
-  "nueva_password": "NuevoPassword456"
+  "password_actual": "<contraseÃ±a-segura>",
+  "nueva_password": "<contraseÃ±a-segura>"
 }
 ```
 
 **Respuesta (200):**
 ```json
-{ "message": "Contraseña actualizada correctamente." }
+{ "message": "ContraseÃ±a actualizada correctamente." }
 ```
 
 ---
 
 ### GET /auth/google
-Inicia el flujo de autenticación con Google. Passport redirige automáticamente al selector de cuenta de Google.  
-**Guard:** `GoogleAuthGuard` (público)
+Inicia el flujo de autenticaciÃ³n con Google. Passport redirige automÃ¡ticamente al selector de cuenta de Google.  
+**Guard:** `GoogleAuthGuard` (pÃºblico)
 
 > No requiere body ni headers. El usuario es redirigido al login de Google.  
 > Pendiente: completar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env`.
@@ -250,12 +257,13 @@ Inicia el flujo de autenticación con Google. Passport redirige automáticamente
 ---
 
 ### GET /auth/google/callback
-Callback al que redirige Google tras la autenticación exitosa. No se llama directamente — Google lo invoca automáticamente.  
-**Guard:** `GoogleAuthGuard`
+Callback al que redirige Google tras la autenticaciÃ³n exitosa. No se llama directamente â€” Google lo invoca automÃ¡ticamente.
+**Guard:** GoogleAuthGuard`n
+> ⚠️ **Corregido P0.7** C2: P1a.8a: OAuth no debe auto-crear; el código actual todavía auto-crea (`findOrCreateGoogleUser`). C3: P1a.8b comportamiento actual inseguro.
 
 **Comportamiento:**
-- Si el email de Google ya existe en la BD → retorna el usuario existente
-- Si no existe → crea persona (sin documento de identidad) + usuario con rol Contador (id=2) y password aleatorio
+- Si el email de Google ya existe en la BD â†’ retorna el usuario existente
+- Si no existe â†’ crea persona (sin documento de identidad) + usuario con rol Contador (id=2) y password aleatorio
 - Redirige al frontend con los tokens como query params:
 
 ```
@@ -281,7 +289,7 @@ Crea una persona con sus documentos de identidad.
   "nombre": "Antonio",
   "apellido": "Barrios",
   "telefono": "0971234567",
-  "direccion": "Av. Mariscal López 1234, Asunción",
+  "direccion": "Av. Mariscal LÃ³pez 1234, AsunciÃ³n",
   "ciudad_id": 1,
   "documentos": [
     {
@@ -293,24 +301,24 @@ Crea una persona con sus documentos de identidad.
 }
 ```
 
-| Campo | Tipo | Requerido | Descripción |
+| Campo | Tipo | Requerido | DescripciÃ³n |
 |---|---|---|---|
-| `nombre` | string | ✅ | Nombre de la persona |
-| `apellido` | string | ✅ | Apellido |
-| `telefono` | string | ❌ | Teléfono de contacto |
-| `direccion` | string | ❌ | Dirección |
-| `ciudad_id` | number | ❌ | ID de ciudad |
-| `documentos` | array | ✅ | Al menos 1 documento |
-| `documentos[].tipo_documento_id` | number | ✅ | ID del tipo de documento |
-| `documentos[].numero` | string | ✅ | Número del documento |
-| `documentos[].fecha_vencimiento` | date | ❌ | Vencimiento (YYYY-MM-DD) |
+| `nombre` | string | âœ… | Nombre de la persona |
+| `apellido` | string | âœ… | Apellido |
+| `telefono` | string | âŒ | TelÃ©fono de contacto |
+| `direccion` | string | âŒ | DirecciÃ³n |
+| `ciudad_id` | number | âŒ | ID de ciudad |
+| `documentos` | array | âœ… | Al menos 1 documento |
+| `documentos[].tipo_documento_id` | number | âœ… | ID del tipo de documento |
+| `documentos[].numero` | string | âœ… | NÃºmero del documento |
+| `documentos[].fecha_vencimiento` | date | âŒ | Vencimiento (YYYY-MM-DD) |
 
 **Respuesta (201):** Objeto `Persona` con sus documentos.
 
 ---
 
 ### GET /personas
-Lista personas con paginación.
+Lista personas con paginaciÃ³n.
 
 **Query params:** `?page=1&limit=20`
 
@@ -357,11 +365,11 @@ Crea un usuario vinculado a una persona existente o nueva.
 ```json
 {
   "email": "nuevo@empresa.com",
-  "password": "SecurePass123",
+  "password": "<contraseÃ±a-segura>",
   "rol_id": 2,
   "persona": {
-    "nombre": "María",
-    "apellido": "López",
+    "nombre": "MarÃ­a",
+    "apellido": "LÃ³pez",
     "documentos": [
       { "tipo_documento_id": 1, "numero": "3456789" }
     ]
@@ -373,26 +381,26 @@ Crea un usuario vinculado a una persona existente o nueva.
 ```json
 {
   "email": "nuevo@empresa.com",
-  "password": "SecurePass123",
+  "password": "<contraseÃ±a-segura>",
   "rol_id": 2,
   "persona_id": 7
 }
 ```
 
-| Campo | Tipo | Requerido | Descripción |
+| Campo | Tipo | Requerido | DescripciÃ³n |
 |---|---|---|---|
-| `email` | string | ✅ | Email único |
-| `password` | string | ✅ | Contraseña en texto plano (se hashea con bcrypt) |
-| `rol_id` | number | ✅ | ID del rol (1=Admin, 2=Contador, 3=Solo Lectura) |
-| `persona_id` | number | ❌ | ID de persona existente |
-| `persona` | object | ❌ | Datos para crear persona nueva (si no hay `persona_id`) |
+| `email` | string | âœ… | Email Ãºnico |
+| `password` | string | âœ… | ContraseÃ±a en texto plano (se hashea con bcrypt) |
+| `rol_id` | number | âœ… | ID del rol (1=Admin, 2=Contador, 3=Solo Lectura) |
+| `persona_id` | number | âŒ | ID de persona existente |
+| `persona` | object | âŒ | Datos para crear persona nueva (si no hay `persona_id`) |
 
 **Nota:** Se debe enviar `persona_id` O `persona`, no ambos.
 
 ---
 
 ### GET /usuarios
-Lista usuarios con paginación.
+Lista usuarios con paginaciÃ³n.
 
 **Query params:** `?page=1&limit=20`
 
@@ -404,12 +412,12 @@ Obtiene un usuario por ID.
 ---
 
 ### PATCH /usuarios/:id
-Actualiza un usuario. Si se envía `password`, se hashea automáticamente.
+Actualiza un usuario. Si se envÃ­a `password`, se hashea automÃ¡ticamente.
 
 **Body:**
 ```json
 {
-  "password": "NuevoPassword789",
+  "password": "<contraseÃ±a-segura>",
   "rol_id": 3
 }
 ```
@@ -425,7 +433,7 @@ Elimina un usuario.
 
 **Guard:** `JwtAuthGuard` + `MenuRolGuard` (permiso `/persona-documentos`)
 
-CRUD estándar para gestionar documentos de identidad de personas en forma independiente.
+CRUD estÃ¡ndar para gestionar documentos de identidad de personas en forma independiente.
 
 ### POST /persona-documentos
 
@@ -451,7 +459,7 @@ Lista todos los documentos.
 ## 5. Contribuyentes (`/negocio/contribuyentes`)
 
 **Guard:** `JwtAuthGuard` + `MenuRolGuard` (permiso `/negocio/contribuyentes`)  
-**Soft delete:** Los registros eliminados no se borran físicamente (campo `deleted_at`).
+**Soft delete:** Los registros eliminados no se borran fÃ­sicamente (campo `deleted_at`).
 
 ### POST /negocio/contribuyentes
 Registra un contribuyente (empresa con RUC).
@@ -467,13 +475,13 @@ Registra un contribuyente (empresa con RUC).
 }
 ```
 
-| Campo | Tipo | Requerido | Valores válidos |
+| Campo | Tipo | Requerido | Valores vÃ¡lidos |
 |---|---|---|---|
-| `persona_id` | number | ✅ | ID de persona existente |
-| `ruc` | string | ✅ | RUC sin dígito verificador (máx 20 chars) |
-| `dv` | number | ✅ | Dígito verificador |
-| `razon_social` | string | ✅ | Nombre legal (máx 255 chars) |
-| `tipo_impuesto` | enum | ✅ | `IVA`, `IVA_IRE`, `IVA_IRP`, `IVA_IRE_IRP` |
+| `persona_id` | number | âœ… | ID de persona existente |
+| `ruc` | string | âœ… | RUC sin dÃ­gito verificador (mÃ¡x 20 chars) |
+| `dv` | number | âœ… | DÃ­gito verificador |
+| `razon_social` | string | âœ… | Nombre legal (mÃ¡x 255 chars) |
+| `tipo_impuesto` | enum | âœ… | `IVA`, `IVA_IRE`, `IVA_IRP`, `IVA_IRE_IRP` |
 
 **Errores:** `409` si el RUC ya existe.
 
@@ -493,7 +501,7 @@ Registra un contribuyente (empresa con RUC).
 ## 6. Comprobantes de Compra (`/negocio/comprobantes`)
 
 **Guard:** `JwtAuthGuard` + `MenuRolGuard` (permiso `/negocio/comprobantes`)  
-**Soft delete activo.** Los POST además tienen `SuscripcionGuard`.
+**Soft delete activo.** Los POST ademÃ¡s tienen `SuscripcionGuard`.
 
 ### POST /negocio/comprobantes
 Registra un comprobante de compra manualmente.
@@ -523,30 +531,30 @@ Registra un comprobante de compra manualmente.
 }
 ```
 
-| Campo | Tipo | Requerido | Descripción |
+| Campo | Tipo | Requerido | DescripciÃ³n |
 |---|---|---|---|
-| `contribuyente_id` | number | ✅ | ID del contribuyente propietario |
-| `nro_comprobante` | string | ✅ | Formato exacto: `###-###-#######` |
-| `timbrado` | string | ✅ | 8 dígitos exactos |
-| `ruc_emisor` | string | ✅ | RUC del emisor (con o sin DV) |
-| `razon_social_emisor` | string | ✅ | Nombre del emisor |
-| `fecha_emision` | date | ✅ | Formato `YYYY-MM-DD` |
-| `monto_total` | number | ✅ | Total en guaraníes (mínimo: 1) |
-| `gravada_10` | number | ❌ | Base gravada al 10% |
-| `gravada_5` | number | ❌ | Base gravada al 5% |
-| `exenta` | number | ❌ | Monto exento |
-| `iva_10` | number | ❌ | IVA al 10% |
-| `iva_5` | number | ❌ | IVA al 5% |
-| `tipo_comprobante_set` | number | ❌ | Código SET: 101-112, 201-211 |
-| `condicion_operacion` | number | ❌ | `1`=contado, `2`=crédito |
-| `imputa_iva` | string | ❌ | `"S"` o `"N"` |
-| `imputa_ire` | string | ❌ | `"S"` o `"N"` |
-| `imputa_irp` | string | ❌ | `"S"` o `"N"` |
-| `no_imputa` | string | ❌ | `"S"` o `"N"` |
-| `moneda_extranjera` | string | ❌ | `"S"` o `"N"` |
-| `tipo_gasto` | enum | ❌ | Clasificación IRP gasto |
-| `comprobante_asociado` | string | ❌ | Para notas crédito/débito: `###-###-#######` |
-| `timbrado_asociado` | string | ❌ | Timbrado del comprobante original |
+| `contribuyente_id` | number | âœ… | ID del contribuyente propietario |
+| `nro_comprobante` | string | âœ… | Formato exacto: `###-###-#######` |
+| `timbrado` | string | âœ… | 8 dÃ­gitos exactos |
+| `ruc_emisor` | string | âœ… | RUC del emisor (con o sin DV) |
+| `razon_social_emisor` | string | âœ… | Nombre del emisor |
+| `fecha_emision` | date | âœ… | Formato `YYYY-MM-DD` |
+| `monto_total` | number | âœ… | Total en guaranÃ­es (mÃ­nimo: 1) |
+| `gravada_10` | number | âŒ | Base gravada al 10% |
+| `gravada_5` | number | âŒ | Base gravada al 5% |
+| `exenta` | number | âŒ | Monto exento |
+| `iva_10` | number | âŒ | IVA al 10% |
+| `iva_5` | number | âŒ | IVA al 5% |
+| `tipo_comprobante_set` | number | âŒ | CÃ³digo SET: 101-112, 201-211 |
+| `condicion_operacion` | number | âŒ | `1`=contado, `2`=crÃ©dito |
+| `imputa_iva` | string | âŒ | `"S"` o `"N"` |
+| `imputa_ire` | string | âŒ | `"S"` o `"N"` |
+| `imputa_irp` | string | âŒ | `"S"` o `"N"` |
+| `no_imputa` | string | âŒ | `"S"` o `"N"` |
+| `moneda_extranjera` | string | âŒ | `"S"` o `"N"` |
+| `tipo_gasto` | enum | âŒ | ClasificaciÃ³n IRP gasto |
+| `comprobante_asociado` | string | âŒ | Para notas crÃ©dito/dÃ©bito: `###-###-#######` |
+| `timbrado_asociado` | string | âŒ | Timbrado del comprobante original |
 
 **Errores:** `409` si ya existe el mismo timbrado + nro_comprobante para ese contribuyente y emisor.
 
@@ -564,7 +572,8 @@ Registra un comprobante de compra manualmente.
 ---
 
 ### GET /negocio/comprobantes/bolsa/pendientes
-Lista comprobantes en estado `REQUIERE_REVISION` aún sin contador asignado (revisión pendiente).
+> ⚠️ **Corregido P0.7** C7: Endpoints de bolsa de revisión.
+Lista comprobantes en estado `REQUIERE_REVISION` aÃºn sin contador asignado (revisiÃ³n pendiente).
 
 **Respuesta:**
 ```json
@@ -582,7 +591,7 @@ Lista comprobantes en estado `REQUIERE_REVISION` aún sin contador asignado (rev
 ---
 
 ### POST /negocio/comprobantes/bolsa/:id/reclamar
-Un contador reclama un comprobante para su revisión. Protege contra doble reclamo concurrente.
+Un contador reclama un comprobante para su revisiÃ³n. Protege contra doble reclamo concurrente.
 
 **Respuesta:**
 ```json
@@ -618,26 +627,26 @@ Un contador reclama un comprobante para su revisión. Protege contra doble recla
 }
 ```
 
-| Campo | Tipo | Requerido | Descripción |
+| Campo | Tipo | Requerido | DescripciÃ³n |
 |---|---|---|---|
-| `contribuyente_id` | number | ✅ | ID del contribuyente emisor |
-| `nro_comprobante` | string | ✅ | Formato `###-###-#######` |
-| `timbrado` | string | ✅ | 8 dígitos |
-| `fecha_emision` | date | ✅ | `YYYY-MM-DD` |
-| `ruc_cliente` | string | ✅ | RUC del cliente comprador |
-| `razon_social_cliente` | string | ✅ | Nombre del cliente |
-| `monto_total` | number | ✅ | Total en guaraníes |
-| `gravada_10` | number | ❌ | Base gravada al 10% |
-| `gravada_5` | number | ❌ | Base gravada al 5% |
-| `exenta` | number | ❌ | Monto exento |
-| `iva_10` | number | ❌ | IVA calculado 10% |
-| `iva_5` | number | ❌ | IVA calculado 5% |
-| `tipo_comprobante_set` | number | ❌ | Código SET (101-211) |
-| `condicion_operacion` | number | ❌ | `1`=contado, `2`=crédito |
-| `moneda_extranjera` | string | ❌ | `"S"` o `"N"` |
-| `imputa_iva` | string | ❌ | `"S"` o `"N"` |
-| `imputa_ire` | string | ❌ | `"S"` o `"N"` |
-| `imputa_irp` | string | ❌ | `"S"` o `"N"` |
+| `contribuyente_id` | number | âœ… | ID del contribuyente emisor |
+| `nro_comprobante` | string | âœ… | Formato `###-###-#######` |
+| `timbrado` | string | âœ… | 8 dÃ­gitos |
+| `fecha_emision` | date | âœ… | `YYYY-MM-DD` |
+| `ruc_cliente` | string | âœ… | RUC del cliente comprador |
+| `razon_social_cliente` | string | âœ… | Nombre del cliente |
+| `monto_total` | number | âœ… | Total en guaranÃ­es |
+| `gravada_10` | number | âŒ | Base gravada al 10% |
+| `gravada_5` | number | âŒ | Base gravada al 5% |
+| `exenta` | number | âŒ | Monto exento |
+| `iva_10` | number | âŒ | IVA calculado 10% |
+| `iva_5` | number | âŒ | IVA calculado 5% |
+| `tipo_comprobante_set` | number | âŒ | CÃ³digo SET (101-211) |
+| `condicion_operacion` | number | âŒ | `1`=contado, `2`=crÃ©dito |
+| `moneda_extranjera` | string | âŒ | `"S"` o `"N"` |
+| `imputa_iva` | string | âŒ | `"S"` o `"N"` |
+| `imputa_ire` | string | âŒ | `"S"` o `"N"` |
+| `imputa_irp` | string | âŒ | `"S"` o `"N"` |
 
 ---
 
@@ -650,26 +659,26 @@ Un contador reclama un comprobante para su revisión. Protege contra doble recla
 
 ### GET /negocio/comprobantes-ventas/bolsa/pendientes
 ### POST /negocio/comprobantes-ventas/bolsa/:id/reclamar
-(Misma lógica que compras.)
+(Misma lÃ³gica que compras.)
 
 ---
 
-## 8. OCR — Extracción Automática (`/ocr-tax`)
+## 8. OCR â€” ExtracciÃ³n AutomÃ¡tica (`/ocr-tax`)
 
-**Guard:** `JwtAuthGuard` + `MenuRolGuard` (permiso `/ocr-tax`) + capa 2 (asignación) + capa 3 (suscripción)  
+**Guard:** `JwtAuthGuard` + `MenuRolGuard` (permiso `/ocr-tax`) + capa 2 (asignaciÃ³n) + capa 3 (suscripciÃ³n)  
 **Content-Type:** `multipart/form-data`
 
 ### Pipeline de procesamiento
 1. Verifica JWT y permisos del rol
-2. Verifica que el usuario tenga asignación contable para el RUC enviado
-3. Verifica que el contribuyente tenga suscripción activa o trial vigente
-4. Valida el archivo (JPEG/PNG/WebP, máx 5 MB)
+2. Verifica que el usuario tenga asignaciÃ³n contable para el RUC enviado
+3. Verifica que el contribuyente tenga suscripciÃ³n activa o trial vigente
+4. Valida el archivo (JPEG/PNG/WebP, mÃ¡x 5 MB)
 5. Convierte imagen a WebP con sharp y sube a Cloudflare R2
 6. Procesa con Tesseract.js (primario)
-7. Si confianza < 75% o faltan campos → fallback a Google Vision
-8. Extrae y valida datos fiscales (cuadratura matemática, formato timbrado)
-9. Consulta SET RUC para razón social y estado
-10. Guarda en comprobantes + cápsula de entrenamiento OCR
+7. Si confianza < 75% o faltan campos â†’ fallback a Google Vision
+8. Extrae y valida datos fiscales (cuadratura matemÃ¡tica, formato timbrado)
+9. Consulta SET RUC para razÃ³n social y estado
+10. Guarda en comprobantes + cÃ¡psula de entrenamiento OCR
 11. Devuelve `AUTO_PROCESADO` o `REQUIERE_REVISION`
 
 ---
@@ -680,8 +689,8 @@ Procesa una imagen de factura de compra (gasto del contribuyente).
 **Form-data:**
 | Campo | Tipo | Requerido |
 |---|---|---|
-| `imagen` | File | ✅ JPG/PNG/WebP, máx 5MB |
-| `ruc` | string | ✅ RUC del contribuyente (ej: `80123456` o `80123456-7`) |
+| `imagen` | File | âœ… JPG/PNG/WebP, mÃ¡x 5MB |
+| `ruc` | string | âœ… RUC del contribuyente (ej: `80123456` o `80123456-7`) |
 
 **Respuesta exitosa (201):**
 ```json
@@ -701,9 +710,9 @@ Procesa una imagen de factura de compra (gasto del contribuyente).
 ```
 
 **Errores comunes:**
-- `400` archivo vacío, MIME no permitido, o imagen no reconocida como comprobante
-- `403` sin asignación contable para ese RUC
-- `403` suscripción CANCELADA sin trial vigente
+- `400` archivo vacÃ­o, MIME no permitido, o imagen no reconocida como comprobante
+- `403` sin asignaciÃ³n contable para ese RUC
+- `403` suscripciÃ³n CANCELADA sin trial vigente
 
 ---
 
@@ -732,11 +741,11 @@ Procesa una imagen de factura emitida por el contribuyente.
 Exporta comprobantes de compra en formato CSV compatible con Marangatu.
 
 **Query params:**
-| Param | Tipo | Requerido | Descripción |
+| Param | Tipo | Requerido | DescripciÃ³n |
 |---|---|---|---|
-| `contribuyente_id` | number | ✅ | ID del contribuyente |
-| `anio` | number | ✅ | Año (ej: `2026`) |
-| `mes` | number | ❌ | Mes 1-12 (si no se envía, exporta todo el año) |
+| `contribuyente_id` | number | âœ… | ID del contribuyente |
+| `anio` | number | âœ… | AÃ±o (ej: `2026`) |
+| `mes` | number | âŒ | Mes 1-12 (si no se envÃ­a, exporta todo el aÃ±o) |
 
 **Ejemplo:**
 ```
@@ -748,7 +757,7 @@ GET /negocio/exportaciones/rg90/compras?contribuyente_id=1&anio=2026&mes=6
 ---
 
 ### GET /negocio/exportaciones/rg90/ventas
-Mismos parámetros que compras.
+Mismos parÃ¡metros que compras.
 
 **Ejemplo:**
 ```
@@ -775,7 +784,7 @@ Vincula un usuario (contador) con un contribuyente (empresa). Es la **capa 2 de 
 }
 ```
 
-**Errores:** `409` si la asignación ya existe.
+**Errores:** `409` si la asignaciÃ³n ya existe.
 
 ---
 
@@ -796,7 +805,7 @@ Controla el estado de acceso de cada contribuyente al sistema (modelo SaaS).
 
 ### POST /cobranzas/suscripciones
 
-**Body (suscripción normal):**
+**Body (suscripciÃ³n normal):**
 ```json
 {
   "contribuyente_id": 1,
@@ -816,13 +825,13 @@ Controla el estado de acceso de cada contribuyente al sistema (modelo SaaS).
 }
 ```
 
-| Campo | Tipo | Requerido | Valores / Descripción |
+| Campo | Tipo | Requerido | Valores / DescripciÃ³n |
 |---|---|---|---|
-| `contribuyente_id` | number | ✅ | ID del contribuyente |
-| `estado` | enum | ❌ | `ACTIVO`, `MOROSO`, `CANCELADO` (default: `ACTIVO`) |
-| `fecha_inicio` | date | ✅ | Fecha de inicio `YYYY-MM-DD` |
-| `es_trial` | boolean | ❌ | Si es período de prueba gratuito |
-| `trial_hasta` | date | ❌ | Fecha límite del trial `YYYY-MM-DD` |
+| `contribuyente_id` | number | âœ… | ID del contribuyente |
+| `estado` | enum | âŒ | `ACTIVO`, `MOROSO`, `CANCELADO` (default: `ACTIVO`) |
+| `fecha_inicio` | date | âœ… | Fecha de inicio `YYYY-MM-DD` |
+| `es_trial` | boolean | âŒ | Si es perÃ­odo de prueba gratuito |
+| `trial_hasta` | date | âŒ | Fecha lÃ­mite del trial `YYYY-MM-DD` |
 
 > Con `es_trial: true` y `trial_hasta` en el futuro, el contribuyente puede operar aunque el estado sea `CANCELADO`.
 
@@ -841,7 +850,7 @@ Controla el estado de acceso de cada contribuyente al sistema (modelo SaaS).
 
 **Guard:** `JwtAuthGuard` + `MenuRolGuard` (permiso `/cobranzas/cuotas-pagos`)
 
-Registra los pagos de cuotas asociados a una suscripción.
+Registra los pagos de cuotas asociados a una suscripciÃ³n.
 
 ### POST /cobranzas/cuotas-pagos
 
@@ -856,13 +865,13 @@ Registra los pagos de cuotas asociados a una suscripción.
 }
 ```
 
-| Campo | Tipo | Requerido | Descripción |
+| Campo | Tipo | Requerido | DescripciÃ³n |
 |---|---|---|---|
-| `suscripcion_id` | number | ✅ | ID de la suscripción |
-| `monto` | number | ✅ | Monto en guaraníes |
-| `fecha_vencimiento` | date | ✅ | `YYYY-MM-DD` |
-| `fecha_pago` | date | ❌ | `YYYY-MM-DD` (nulo si no pagado) |
-| `estado` | enum | ❌ | `PENDIENTE`, `PAGADO`, `VENCIDO` |
+| `suscripcion_id` | number | âœ… | ID de la suscripciÃ³n |
+| `monto` | number | âœ… | Monto en guaranÃ­es |
+| `fecha_vencimiento` | date | âœ… | `YYYY-MM-DD` |
+| `fecha_pago` | date | âŒ | `YYYY-MM-DD` (nulo si no pagado) |
+| `estado` | enum | âŒ | `PENDIENTE`, `PAGADO`, `VENCIDO` |
 
 ---
 
@@ -877,7 +886,7 @@ Registra los pagos de cuotas asociados a una suscripción.
 
 ## 13. Roles (`/roles`)
 
-**Guard:** `JwtAuthGuard` (sin MenuRolGuard — configuración del sistema)
+**Guard:** `JwtAuthGuard` (sin MenuRolGuard â€” configuraciÃ³n del sistema)
 
 ### POST /roles
 ```json
@@ -892,7 +901,7 @@ Lista todos los roles.
 ### DELETE /roles/:id
 
 ### GET /roles/:id/menus
-Devuelve los grupos de menú y sus permisos configurados para ese rol. Útil para que el frontend construya el menú dinámico.
+Devuelve los grupos de menÃº y sus permisos configurados para ese rol. Ãštil para que el frontend construya el menÃº dinÃ¡mico.
 
 **Respuesta:**
 ```json
@@ -916,7 +925,7 @@ Devuelve los grupos de menú y sus permisos configurados para ese rol. Útil par
 
 ---
 
-## 14. Menús (`/menu`)
+## 14. MenÃºs (`/menu`)
 
 **Guard:** `JwtAuthGuard`
 
@@ -938,15 +947,15 @@ Devuelve los grupos de menú y sus permisos configurados para ese rol. Útil par
 
 ---
 
-## 15. Grupos de Menú (`/grupo-menu`)
+## 15. Grupos de MenÃº (`/grupo-menu`)
 
 **Guard:** `JwtAuthGuard`
 
 ### POST /grupo-menu
 ```json
 {
-  "nombre": "Administración",
-  "descripcion": "Módulos de configuración del sistema",
+  "nombre": "AdministraciÃ³n",
+  "descripcion": "MÃ³dulos de configuraciÃ³n del sistema",
   "icono": "settings"
 }
 ```
@@ -958,11 +967,11 @@ Devuelve los grupos de menú y sus permisos configurados para ese rol. Útil par
 
 ---
 
-## 16. Permisos Menú-Rol (`/menu-rol`)
+## 16. Permisos MenÃº-Rol (`/menu-rol`)
 
 **Guard:** `JwtAuthGuard`
 
-Asigna permisos granulares (listar/guardar/editar/eliminar) a un rol para un menú específico.
+Asigna permisos granulares (listar/guardar/editar/eliminar) a un rol para un menÃº especÃ­fico.
 
 ### POST /menu-rol
 ```json
@@ -976,9 +985,9 @@ Asigna permisos granulares (listar/guardar/editar/eliminar) a un rol para un men
 }
 ```
 
-| Campo | Tipo | Descripción |
+| Campo | Tipo | DescripciÃ³n |
 |---|---|---|
-| `menu_id` | number | ID del menú |
+| `menu_id` | number | ID del menÃº |
 | `rol_id` | number | ID del rol |
 | `permitir_listar` | boolean | Permiso para GET (listar) |
 | `permitir_guardar` | boolean | Permiso para POST (crear) |
@@ -999,7 +1008,7 @@ Asigna permisos granulares (listar/guardar/editar/eliminar) a un rol para un men
 ### POST /tipos-documento
 ```json
 {
-  "nombre": "Cédula de Identidad",
+  "nombre": "CÃ©dula de Identidad",
   "codigo": "CI"
 }
 ```
@@ -1011,7 +1020,7 @@ Asigna permisos granulares (listar/guardar/editar/eliminar) a un rol para un men
 
 ---
 
-## 18. Países (`/pais`)
+## 18. PaÃ­ses (`/pais`)
 
 **Guard:** `JwtAuthGuard`
 
@@ -1021,7 +1030,7 @@ Asigna permisos granulares (listar/guardar/editar/eliminar) a un rol para un men
 ```
 
 ### POST /pais/masivo
-Carga masiva de países.
+Carga masiva de paÃ­ses.
 ```json
 [
   { "nombre": "Paraguay" },
@@ -1041,7 +1050,7 @@ Carga masiva de países.
 
 ## 19. Departamentos (`/departamento`)
 
-**Guard:** `ApiKeyGuard` — Requiere header `x-api-key: <API_KEY>`
+**Guard:** `ApiKeyGuard` â€” Requiere header `x-api-key: <API_KEY>`
 
 ### POST /departamento
 ```json
@@ -1055,7 +1064,7 @@ Carga masiva de países.
 ```json
 [
   { "nombre": "Central", "pais_id": 1 },
-  { "nombre": "Alto Paraná", "pais_id": 1 }
+  { "nombre": "Alto ParanÃ¡", "pais_id": 1 }
 ]
 ```
 
@@ -1070,12 +1079,12 @@ Carga masiva de países.
 
 ## 20. Ciudades (`/ciudad`)
 
-**Guard:** `ApiKeyGuard` — Requiere header `x-api-key: <API_KEY>`
+**Guard:** `ApiKeyGuard` â€” Requiere header `x-api-key: <API_KEY>`
 
 ### POST /ciudad
 ```json
 {
-  "nombre": "Asunción",
+  "nombre": "AsunciÃ³n",
   "departamento_id": 1
 }
 ```
@@ -1083,13 +1092,13 @@ Carga masiva de países.
 ### POST /ciudad/masivo
 ```json
 [
-  { "nombre": "Asunción", "departamento_id": 1 },
+  { "nombre": "AsunciÃ³n", "departamento_id": 1 },
   { "nombre": "San Lorenzo", "departamento_id": 1 }
 ]
 ```
 
 ### GET /ciudad
-**Query params:** `?nombre=Asunción`
+**Query params:** `?nombre=AsunciÃ³n`
 
 ### GET /ciudad/:id
 ### PATCH /ciudad/:id
@@ -1097,33 +1106,33 @@ Carga masiva de países.
 
 ---
 
-## Códigos de tipo de comprobante SET
+## CÃ³digos de tipo de comprobante SET
 
-| Código | Descripción |
+| CÃ³digo | DescripciÃ³n |
 |---|---|
 | 101 | Factura |
-| 102 | Nota de débito |
-| 103 | Nota de crédito |
+| 102 | Nota de dÃ©bito |
+| 103 | Nota de crÃ©dito |
 | 104 | Autofactura |
-| 105 | Nota de remisión |
-| 106 | Comprobante de retención |
-| 107 | Comprobante de liquidación |
-| 108 | Liquidación de compra a pequeño productor |
+| 105 | Nota de remisiÃ³n |
+| 106 | Comprobante de retenciÃ³n |
+| 107 | Comprobante de liquidaciÃ³n |
+| 108 | LiquidaciÃ³n de compra a pequeÃ±o productor |
 | 109 | Ticket (POS) |
 | 110 | Entrada de dinero |
 | 111 | Salida de dinero |
 | 112 | Nota de venta |
-| 201 | Factura electrónica (E-Factura) |
-| 202 | Nota de débito electrónica |
-| 203 | Nota de crédito electrónica |
-| 204 | Autofactura electrónica |
-| 205 | Nota de remisión electrónica |
-| 206 | Comprobante de retención electrónico |
-| 207 | Comprobante de liquidación electrónico |
-| 208 | Liquidación de compra a pequeño productor electrónica |
-| 209 | Ticket electrónico |
-| 210 | Entrada de dinero electrónica |
-| 211 | Salida de dinero electrónica |
+| 201 | Factura electrÃ³nica (E-Factura) |
+| 202 | Nota de dÃ©bito electrÃ³nica |
+| 203 | Nota de crÃ©dito electrÃ³nica |
+| 204 | Autofactura electrÃ³nica |
+| 205 | Nota de remisiÃ³n electrÃ³nica |
+| 206 | Comprobante de retenciÃ³n electrÃ³nico |
+| 207 | Comprobante de liquidaciÃ³n electrÃ³nico |
+| 208 | LiquidaciÃ³n de compra a pequeÃ±o productor electrÃ³nica |
+| 209 | Ticket electrÃ³nico |
+| 210 | Entrada de dinero electrÃ³nica |
+| 211 | Salida de dinero electrÃ³nica |
 
 ---
 
@@ -1139,8 +1148,4 @@ Carga masiva de países.
 
 ## Credenciales de prueba
 
-| Campo | Valor |
-|---|---|
-| Email | `admin@sistema.com` |
-| Password | `12356` |
-| URL base | `http://localhost:9031` |
+> ⚠️ **Corregido P0.7** Usar  `npm run bootstrap:admin`.

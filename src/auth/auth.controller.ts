@@ -11,11 +11,11 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
-import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { CreateUsuarioDto } from 'src/gestion/usuarios/dto/create-usuario.dto';
 import { UsuariosService } from 'src/gestion/usuarios/usuarios.service';
@@ -24,9 +24,11 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CambiarPasswordDto } from './dto/cambiar-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { MenuRolGuard } from 'src/common/guards/menu-rol.guard';
 import { RequierePermiso } from 'src/common/decorators/permiso.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { esAdministrador } from 'src/common/guards/administrador.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -50,11 +52,17 @@ export class AuthController {
   @Post('register')
   @UseGuards(JwtAuthGuard, MenuRolGuard)
   @RequierePermiso('/usuarios')
-  async register(@Body() createUsuarioDto: CreateUsuarioDto) {
-    const user = await this.usuariosService.create(createUsuarioDto);
+  async register(
+    @Body() createUsuarioDto: CreateUsuarioDto,
+    @CurrentUser() user: any,
+  ) {
+    if (!esAdministrador(user)) {
+      throw new ForbiddenException('Solo un Administrador puede asignar roles.');
+    }
+    const userEntity = await this.usuariosService.create(createUsuarioDto);
     return {
       message: 'Usuario registrado exitosamente',
-      user: { id: user.id, email: user.email, rol: user.rol },
+      user: { id: userEntity.id, email: userEntity.email, rol: userEntity.rol },
     };
   }
 
@@ -115,14 +123,14 @@ export class AuthController {
 
   // Google OAuth — redirige al selector de cuenta de Google
   @Get('google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   async googleAuth() {
     // Passport redirige automáticamente a Google
   }
 
   // Google OAuth — callback tras autenticación exitosa en Google
   @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   async googleCallback(@Req() req: { user: any }, @Res() res: Response) {
     const tokens = await this.authService.login(req.user);
     const frontendUrl =

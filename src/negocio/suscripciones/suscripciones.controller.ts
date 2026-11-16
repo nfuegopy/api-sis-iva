@@ -17,7 +17,7 @@ import { UpdateSuscripcionDto } from './dto/update-suscripcion.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
-import { PaginacionDto } from '../../common/dto/paginacion.dto';
+import { FiltroSuscripcionesDto } from './dto/filtro-suscripciones.dto';
 
 @Controller('cobranzas/suscripciones')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
@@ -31,12 +31,12 @@ export class SuscripcionesController {
   }
 
   @Get()
-  findAll(
-    @Query() paginacion: PaginacionDto,
-    @Query('contribuyente_id') contribuyente_id?: string,
-  ) {
-    const id = contribuyente_id ? parseInt(contribuyente_id, 10) : undefined;
-    return this.suscripcionesService.findAll(paginacion.page, paginacion.limit, id);
+  findAll(@Query() filtros: FiltroSuscripcionesDto) {
+    return this.suscripcionesService.findAll(
+      filtros.page,
+      filtros.limit,
+      filtros.contribuyente_id,
+    );
   }
 
   @Get(':id')

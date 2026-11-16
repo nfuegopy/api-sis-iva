@@ -14,9 +14,10 @@ import { MenuRolService } from './menu-rol.service';
 import { CreateMenuRolDto } from './dto/create-menu-rol.dto';
 import { UpdateMenuRolDto } from './dto/update-menu-rol.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { AdministradorGuard } from '../../../common/guards/administrador.guard';
 
 @Controller('menu-rol')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdministradorGuard)
 export class MenuRolController {
   constructor(private readonly menuRolService: MenuRolService) {}
 

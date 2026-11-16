@@ -17,7 +17,7 @@ import { UpdateCuotaPagoDto } from './dto/update-cuota-pago.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
-import { PaginacionDto } from '../../common/dto/paginacion.dto';
+import { FiltroCuotasPagosDto } from './dto/filtro-cuotas-pagos.dto';
 
 @Controller('cobranzas/cuotas-pagos')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
@@ -31,12 +31,12 @@ export class CuotasPagosController {
   }
 
   @Get()
-  findAll(
-    @Query() paginacion: PaginacionDto,
-    @Query('suscripcion_id') suscripcion_id?: string,
-  ) {
-    const id = suscripcion_id ? parseInt(suscripcion_id, 10) : undefined;
-    return this.cuotasPagosService.findAll(paginacion.page, paginacion.limit, id);
+  findAll(@Query() filtros: FiltroCuotasPagosDto) {
+    return this.cuotasPagosService.findAll(
+      filtros.page,
+      filtros.limit,
+      filtros.suscripcion_id,
+    );
   }
 
   @Get(':id')

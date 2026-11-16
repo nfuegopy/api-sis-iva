@@ -7,11 +7,24 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsuariosModule } from 'src/gestion/usuarios/usuarios.module';
+import { UsuariosService } from 'src/gestion/usuarios/usuarios.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { TokenCleanupService } from './token-cleanup.service';
+
+import { getGoogleOAuthConfig } from './config/google-oauth.config';
+
+export const googleStrategyFactory = (configService: ConfigService, usuariosService: UsuariosService): GoogleStrategy | null => {
+  const config = getGoogleOAuthConfig(configService);
+  if (config) {
+    return new GoogleStrategy(configService, usuariosService);
+  }
+  // Retornar null evita que Nest instancie GoogleStrategy,
+  // lo cual impide que Passport registre la estrategia 'google'.
+  return null;
+};
 
 @Module({
   imports: [
@@ -30,7 +43,16 @@ import { TokenCleanupService } from './token-cleanup.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, GoogleStrategy, TokenCleanupService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    TokenCleanupService,
+    {
+      provide: GoogleStrategy,
+      inject: [ConfigService, UsuariosService],
+      useFactory: googleStrategyFactory,
+    },
+  ],
   exports: [JwtStrategy],
 })
 export class AuthModule {}

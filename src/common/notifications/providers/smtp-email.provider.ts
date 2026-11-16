@@ -16,7 +16,6 @@ export class SmtpEmailProvider implements IEmailProvider {
     try {
       await this.mailerService.sendMail({
         to: to,
-        bcc: 'admin@acbldeveloper.com',
         subject: subject,
         html: htmlBody,
         // El 'from' se toma por defecto del Module, pero se puede sobreescribir aquí si es necesario

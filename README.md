@@ -1,8 +1,10 @@
-# Facturación IVA API
+# FacturaciÃ³n IVA API
 
-API REST SaaS para lectura, registro y exportación de comprobantes fiscales tributarios de Paraguay (SET/Marangatu).
+> ⚠️ **Corregido P0.7** C1: Autoridad .ai-work (vigente).
 
-**Stack:** NestJS 11 · TypeORM 0.3 · MySQL 8.0 · JWT · Google OAuth2 · Tesseract.js · Cloudflare R2
+API REST SaaS para lectura, registro y exportaciÃ³n de comprobantes fiscales tributarios de Paraguay (SET/Marangatu).
+
+**Stack:** NestJS 11 Â· TypeORM 0.3 Â· MySQL 8.0 Â· JWT Â· Google OAuth2 Â· Tesseract.js Â· Cloudflare R2
 
 ---
 
@@ -12,15 +14,20 @@ API REST SaaS para lectura, registro y exportación de comprobantes fiscales tri
 - MySQL 8.0
 - npm
 
-## Instalación
+## Correcciones P0.7
+| Sección | Corrección  |
+|---|---|
+
+
+## InstalaciÃ³n
 
 ```bash
 npm install
 ```
 
-## Configuración
+## ConfiguraciÃ³n
 
-Crear archivo `.env` en la raíz (ver sección de variables de entorno más abajo o `CLAUDE.md` para referencia completa).
+Crear archivo `.env` en la raÃ­z (ver secciÃ³n de variables de entorno mÃ¡s abajo o `CLAUDE.md` para referencia completa).
 
 ## Levantar el servidor
 
@@ -28,7 +35,7 @@ Crear archivo `.env` en la raíz (ver sección de variables de entorno más abaj
 # Desarrollo (watch mode)
 npm run start:dev
 
-# Producción
+# ProducciÃ³n
 npm run build
 npm run start:prod
 ```
@@ -37,15 +44,7 @@ El servidor arranca en el puerto definido por `PORT` (default: `9031`).
 
 ## Base de datos
 
-Aplicar el schema completo (tablas + seed):
-
-```bash
-mysql -u root -pTUPASSWORD < schema_bd_sis_iva.sql
-```
-
-Incluye: 22 tablas, roles, menús, 41 permisos y usuario admin inicial.
-
-**Credenciales admin:** `admin@sistema.com` / `12356`
+> ⚠️ **Corregido P0.7** C4/C5: Retirado en P0.7. Baseline versionado 21 tablas, 37 menu_rol. Usar  `npm run bootstrap:admin`.
 
 ## URLs
 
@@ -91,11 +90,11 @@ MAIL_FROM=
 MAIL_IGNORE_TLS=false
 ```
 
-## Documentación
+## DocumentaciÃ³n
 
 | Archivo | Contenido |
 |---|---|
-| `CLAUDE.md` | Referencia técnica completa del sistema (stack, entidades, guards, lógica) |
-| `API_ENDPOINTS.md` | Documentación detallada de todos los endpoints con ejemplos |
-| `SISTEMA_IVA_GUIA.md` | Guía de implementación para frontend y mobile |
+| `CLAUDE.md` | Referencia tÃ©cnica completa del sistema (stack, entidades, guards, lÃ³gica) |
+| `API_ENDPOINTS.md` | DocumentaciÃ³n detallada de todos los endpoints con ejemplos |
+| `SISTEMA_IVA_GUIA.md` | GuÃ­a de implementaciÃ³n para frontend y mobile |
 | `basededatos.md` | Arquitectura y estructura de la base de datos |

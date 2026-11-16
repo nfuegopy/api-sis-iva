@@ -14,9 +14,10 @@ import { MenuService } from './menu.service';
 import { CreateMenuDto } from './dto/create-menu.dto';
 import { UpdateMenuDto } from './dto/update-menu.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { AdministradorGuard } from '../../../common/guards/administrador.guard';
 
 @Controller('menu')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdministradorGuard)
 export class MenuController {
   constructor(private readonly menuService: MenuService) {}
 

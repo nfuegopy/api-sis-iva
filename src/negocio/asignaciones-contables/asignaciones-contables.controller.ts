@@ -17,7 +17,7 @@ import { UpdateAsignacionContableDto } from './dto/update-asignacion-contable.dt
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { MenuRolGuard } from '../../common/guards/menu-rol.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
-import { PaginacionDto } from '../../common/dto/paginacion.dto';
+import { FiltroAsignacionesContablesDto } from './dto/filtro-asignaciones-contables.dto';
 
 @Controller('negocio/asignaciones-contables')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
@@ -33,14 +33,13 @@ export class AsignacionesContablesController {
   }
 
   @Get()
-  findAll(
-    @Query() paginacion: PaginacionDto,
-    @Query('usuario_id') usuario_id?: string,
-    @Query('contribuyente_id') contribuyente_id?: string,
-  ) {
-    const uId = usuario_id ? parseInt(usuario_id, 10) : undefined;
-    const cId = contribuyente_id ? parseInt(contribuyente_id, 10) : undefined;
-    return this.asignacionesService.findAll(paginacion.page, paginacion.limit, uId, cId);
+  findAll(@Query() filtros: FiltroAsignacionesContablesDto) {
+    return this.asignacionesService.findAll(
+      filtros.page,
+      filtros.limit,
+      filtros.usuario_id,
+      filtros.contribuyente_id,
+    );
   }
 
   @Get(':id')

@@ -1,5 +1,7 @@
 # Google OAuth2 — Guía de configuración completa
 
+> ⚠️ **Corregido P0.7** C1: Autoridad `.ai-work/` prevalece; este documento es histórico donde contradiga.
+
 ## ¿Qué hace este módulo?
 
 Permite que un usuario inicie sesión o se registre en el sistema usando su cuenta de Google, sin necesidad de crear un email/password manualmente. Al finalizar, el sistema devuelve los mismos `access_token` y `refresh_token` que el login normal — el resto de la API funciona igual.
@@ -44,6 +46,7 @@ GET /auth/google/callback
   → Redirige al frontend con los tokens como query params:
      {GOOGLE_REDIRECT_FRONTEND_URL}/auth/google/callback?access_token=...&refresh_token=...
 ```
+> ⚠️ **Corregido P0.7** comportamiento actual inseguro, pendiente P1a.8b.
 
 **`usuarios.service.ts` — método `findOrCreateGoogleUser()`**
 - Busca en la tabla `usuarios` por el email de Google
@@ -54,6 +57,8 @@ GET /auth/google/callback
      - `rol_id = 2` (Contador — cambiar si se necesita otro rol por defecto)
      - `password` = bcrypt de 64 bytes aleatorios (nunca se usa para login)
      - `es_temporal = false`
+
+> ⚠️ **Corregido P0.7** OAuth no auto-crea usuarios; el código actual todavía auto-crea (findOrCreateGoogleUser) → pendiente P1a.8a.
 
 ---
 
@@ -279,6 +284,12 @@ function loginConGooglePopup() {
 
 ---
 
+## Correcciones P0.7
+| Sección | Corrección      |
+|---|---|
+| General | C1: Banner de autoridad |
+| Consideraciones | T5: notas en tabla |
+
 ## Consideraciones importantes
 
 | Aspecto | Detalle |
@@ -290,3 +301,5 @@ function loginConGooglePopup() {
 | **Modo Testing de Google** | Mientras la app esté en "Testing" en Google Cloud, solo los emails agregados como "Test users" pueden autenticarse |
 | **Producción** | Para que cualquier cuenta de Google pueda usarlo, hay que solicitar la verificación de la app en Google Cloud (OAuth consent screen → Publish App) |
 | **HTTPS obligatorio** | En producción Google requiere HTTPS para el `GOOGLE_CALLBACK_URL`. El entorno QA (`api-qa.acbldeveloper.com`) ya tiene HTTPS |
+
+> ⚠️ **Corregido P0.7** T5: filas 'Rol por defecto', 'Usuarios existentes' y 'Password' describen el comportamiento actual; D2: OAuth no auto-crea usuarios / no debe auto-crear usuarios → pendiente P1a.8a (el código todavía auto-crea).

@@ -5,6 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Role } from './entities/role.entity';
+import { MenuRol } from '../menu-rol/entities/menu-rol.entity';
 import { RolesService } from './roles.service';
 
 // Creamos un objeto que simula ser el Repositorio de TypeORM
@@ -23,17 +24,14 @@ describe('RolesService', () => {
         RolesService,
         {
           provide: getRepositoryToken(Role), // Este es el token de inyección
-          useValue: mockRolesRepository, // Usamos nuestro simulador en lugar del real
+          useValue: mockRolesRepository,
         },
+        { provide: getRepositoryToken(MenuRol), useValue: {} },
       ],
     }).compile();
 
     service = module.get<RolesService>(RolesService);
     repository = module.get<Repository<Role>>(getRepositoryToken(Role));
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
   });
 
   // --- PRUEBA PARA EL MÉTODO findAll ---

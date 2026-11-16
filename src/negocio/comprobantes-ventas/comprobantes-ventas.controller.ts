@@ -20,6 +20,7 @@ import { SuscripcionGuard } from '../../common/guards/suscripcion.guard';
 import { RequierePermiso } from '../../common/decorators/permiso.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PaginacionDto } from '../../common/dto/paginacion.dto';
+import { FiltroComprobantesVentasDto } from './dto/filtro-comprobantes-ventas.dto';
 
 @Controller('negocio/comprobantes-ventas')
 @UseGuards(JwtAuthGuard, MenuRolGuard)
@@ -48,13 +49,13 @@ export class ComprobantesVentasController {
   }
 
   @Get()
-  findAll(
-    @Query() paginacion: PaginacionDto,
-    @Query('contribuyente_id') contribuyente_id?: string,
-    @Query('estado_ocr') estado_ocr?: string,
-  ) {
-    const id = contribuyente_id ? parseInt(contribuyente_id, 10) : undefined;
-    return this.service.findAll(paginacion.page, paginacion.limit, id, estado_ocr);
+  findAll(@Query() filtros: FiltroComprobantesVentasDto) {
+    return this.service.findAll(
+      filtros.page,
+      filtros.limit,
+      filtros.contribuyente_id,
+      filtros.estado_ocr,
+    );
   }
 
   @Get(':id')

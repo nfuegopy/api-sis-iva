@@ -87,9 +87,8 @@ export class UsuariosService {
 
     // Envío de bienvenida solo para usuarios no temporales (no auto-creados)
     if (!es_temporal) {
-      const passwordPlano = password; // capturado antes del @BeforeInsert que hashea
       this.notificationsService
-        .sendBienvenidaEmail(email, personaParaAsociar.nombre, passwordPlano)
+        .sendBienvenidaEmail(email, personaParaAsociar.nombre)
         .catch((err: Error) =>
           this.logger.error(`Error enviando bienvenida a ${email}: ${err.message}`),
         );
